@@ -4,7 +4,7 @@ const pool = new Pool({
   user: "postgres",
   host: "localhost",
   database: "coindesk_news",
-  password: "####", // ⚠️ 替換成你的真實密碼
+  password: "****", // ⚠️ 替換成你的真實密碼
   port: 5432,
 });
 

@@ -36,12 +36,12 @@ async function newsDetail(url, index) {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
 
-    const time = $('div.Noto_Sans_xs_Sans-400-xs.flex.gap-4.text-charcoal-600.flex-col.md\\:block span').map((i, el) => $(el).text().trim()).get().join(' ');
-    const author = $('div.uppercase.Noto_Sans_xs_Sans-600-xs').text().trim();
+    const time = $('div.font-metadata.flex.gap-4.text-charcoal-600.flex-col.md\\:block span').map((i, el) => $(el).text().trim()).get().join(' ');
+    const author = $('div.font-metadata.uppercase').text().trim();
 
     const contentDetail = [];
     $('div.py-8.mt-4.mb-8.border-y.border-solid.border-charcoal-50 h4, div.py-8.mt-4.mb-8.border-y.border-solid.border-charcoal-50 ul.unordered-list li, p, ul.unordered-list li, li[data-immersive-translate-walked]').each((i, el) => {
-      if ($(el).is('p') && ($(el).closest('div.flex.flex-col').length || $(el).closest('div.column').length)) {
+      if ($(el).is('p') && ($(el).closest('div.flexclear.flex-col').length || $(el).closest('div.column').length)) {
         return;
       }
       if ($(el).is('li')) {
@@ -70,10 +70,10 @@ async function newsCatchMain(count) {
   const response = await axios.get(targetUrl);
   const $ = cheerio.load(response.data);
 
-  const categories = $('a.Noto_Sans.text-charcoal-600.text-xs.uppercase');
-  const title = $('h2[class*="font-Noto_Sans"]');
-  const content = $('p.font-Noto_Serif.text-color-charcoal-600.mb-4');
-  const timeAgo = $('span.Noto_Sans_xs_Sans-400-xs');
+  const categories = $('p.mb-4 > a.font-title.text-charcoal-600.uppercase');
+  const title = $('h2.font-headline-xs.font-normal');
+  const content = $('p.font-body.text-charcoal-600.mb-4');
+  const timeAgo = $('span.font-metadata.text-color-charcoal-600.uppercase');
 
   for (let i = 0; i < count; i++) {
     news[i] = {
@@ -90,4 +90,4 @@ async function newsCatchMain(count) {
   await makeJson(news);
 }
 
-newsCatchMain(10);
+newsCatchMain(1);

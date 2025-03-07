@@ -1,9 +1,10 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-const url = 'https://www.coindesk.com/markets/2025/03/07/market-experts-weigh-in-on-trump-s-strategic-bitcoin-reserve-that-takes-out-usd17b-in-potential-selling-from-btc';
+const baseUrl = 'https://www.coindesk.com/';
+const targetUrl = `${baseUrl}/latest-crypto-news`;
 
-axios.get(url)
+axios.get(targetUrl)
   .then(response => {
     const html = response.data;
     const $ = cheerio.load(html);

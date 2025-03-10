@@ -90,4 +90,4 @@ async function newsCatchMain(count) {
   await makeJson(news);
 }
 
-newsCatchMain(1);
+newsCatchMain(2);

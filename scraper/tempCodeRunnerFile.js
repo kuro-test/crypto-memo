@@ -1,1 +1,0 @@
-'div.font-metadata.flex.gap-4.text-charcoal-600.flex-col.md\\:block span'

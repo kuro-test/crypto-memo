@@ -34,7 +34,7 @@ async function run() {
     });
 
     // `await` 只能在 `async function` 內使用
-    const result = await chatSession.sendMessage("What is AI?");
+    const result = await chatSession.sendMessage("請用繁體中文回答：想要成為後端工程師需要具備什麼技能？");
     console.log("✅ AI 回應:", result.response.text());
   } catch (error) {
     console.error("❌ API 請求失敗:", error.message);
@@ -43,4 +43,3 @@ async function run() {
 
 // 確保 `run()` 在 async 環境內運行
 run();
-

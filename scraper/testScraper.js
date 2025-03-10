@@ -1,10 +1,11 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-const baseUrl = 'https://www.coindesk.com/';
-const targetUrl = `${baseUrl}/latest-crypto-news`;
+// const baseUrl = 'https://www.coindesk.com/';
+// const targetUrl = `${baseUrl}/latest-crypto-news`;
+Url = "https://www.coindesk.com/markets/2025/03/09/sunday-blues-for-bitcoin-as-it-tumbles-below-usd80k";
 
-axios.get(targetUrl)
+axios.get(Url)
   .then(response => {
     const html = response.data;
     const $ = cheerio.load(html);

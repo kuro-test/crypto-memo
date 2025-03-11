@@ -1,0 +1,45 @@
+[
+  {
+    "id": 1,
+    "url": "https://www.coindesk.com//opinion/2025/03/10/recent-sec-guidance-on-memecoins-suggests-broader-policy-change",
+    "categories": "Opinion",
+    "title": "Recent SEC Guidance On Memecoins Suggests Broader Policy Change",
+    "content": "The guidance may foreshadow a reappraisal of the Howey Test, which the SEC has recently used in its attempts to regulate cryptocurrencies through litigation, say Jason Mendro, Matt Gregory and Nick Harper, attorneys at Gibson Dunn.",
+    "timeago": "6 hours ago",
+    "time": "Mar 10, 2025, 9:17 p.m.  UTC",
+    "author": "By Jason Mendro, Matt Gregory, Nick Harper|Edited by Benjamin Schiller",
+    "contentDetail": [
+      "There is more to SEC’s recent memecoin guidance than meets the eye. On Feb. 27, the staff of the SEC’s Division of Corporate Finance issued guidance explaining that memecoins — which the SEC described as digital assets “inspired by internet memes, characters, current events, or trends for which the promoter seeks to attract an enthusiastic online community” — are generally not sold as securities.",
+      "This is consistent with the SEC’s shift away from efforts under former Chair Gary Gensler to claim regulatory power over virtually the entire digital-asset industry, and it could have implications for the industry that go far beyond memecoins.",
+      "The SEC’s attempts to regulate digital assets during the Biden Administration largely hinged on the Supreme Court’s so-called “Howey test” for determining whether a transaction involves an “investment contract.” Howey requires an investment of money in a common enterprise, with an expectation of profits from the efforts of others.",
+      "In the SEC’s enforcement actions against digital-asset exchanges, the defendants argued that secondary-market resales of digital assets lack the necessary “investment of money in a common enterprise” because investors’ funds are not “pooled” by developers into a common fund and then used to further a business in which the investors share the profits. In the SEC’s case against Kraken, for example, the agency told a federal court that “pooling of resale proceeds” by a developer is not “required under Howey.”",
+      "The SEC’s new guidance confirms the opposite. It says that purchasers of memecoins make no investment in a common enterprise because their funds “are not pooled together to be deployed by promoters or other third parties for developing the coin or a related enterprise.” The guidance also explains that memecoin purchasers do not expect profits derived from the efforts of others, another Howey requirement. Rather, the value of memecoins comes from “speculative trading and the collective sentiment of the market, like a collectible.”",
+      "The SEC’s memecoin guidance is most obviously consequential for the sale and promotion of memecoins, which are the subject of recent private class-actions brought by individual plaintiffs. But it has broader implications for all secondary-market transactions in digital assets, including on exchanges. In secondary-market transactions on exchanges, purchasers’ funds likewise “are not pooled together to be deployed by promoters or other third parties for developing the coin or a related enterprise.” Thus, the SEC now seems to recognize that under a proper application of the Howey test, those transactions are beyond the agency’s reach, as defendants have consistently argued in the SEC’s prior enforcement cases.",
+      "This doctrinal reversal may be part of the impetus behind the SEC’s recent decisions to voluntarily dismiss several cases involving secondary-market transactions, and to stay further proceedings in others.",
+      "To be sure, the SEC’s new guidance includes statements that it “represents the views of [agency] staff,” not necessarily the SEC itself, and that the statement “has no legal force or effect.” The SEC also attempted to restrict the guidance to “the offer and sale of meme coins” under the specific circumstances described elsewhere in the release.",
+      "The agency could try to use those boilerplate recitals to wriggle out of the guidance at some point in the future. But constitutional principles of due process and fair notice may constrain the agency’s ability to impose retroactive liability based on any future flip-flop. Moreover, although the SEC’s guidance is not binding on courts, the SEC’s change in position on pooling will make it difficult for private plaintiffs to credibly argue that most digital assets are sold as securities.",
+      "The SEC’s guidance on memecoins is consistent with the agency’s other recent steps to pull back from the regulation-by-enforcement approach that plagued the industry under former Chair Gary Gensler. And the guidance offers welcome clarity from the agency in an area where the agency’s prior approach had significantly muddied the waters. It is, in short, a significant step in the right direction for crypto law and policy in the United States.",
+      "Note: The views expressed in this column are those of the author and do not necessarily reflect those of CoinDesk, Inc. or its owners and affiliates.",
+      "Jason Mendro is a partner and co-chair of Gibson Dunn’s Securities Litigation Practice in Washington D.C.",
+      "Matt Gregory is a partner in the Washington D.C. office of Gibson, Dunn & Crutcher. He practices in the firm’s Litigation Department and Appellate and Constitutional Law and Administrative Law Practice Groups.",
+      "Nick Harper is a partner in the Washington, D.C. office of Gibson, Dunn & Crutcher. He practices in the firm’s Litigation Department and is a member of the firm’s Appellate and Constitutional Law and Administrative Law and Regulatory Practice Groups."
+    ],
+    "detailZh": [
+      "美國證券交易委員會 (SEC) 近期針對迷因幣 (memecoin) 發布的指引，其背後意義可能比表面上看到的更深遠。在 2 月 27 日，SEC 公司財務部門的工作人員發布了一項指引，說明迷因幣——SEC 將其定義為「靈感來自網路迷因、角色、時事或潮流，發起人旨在吸引熱情的線上社群」的數位資產——通常不被視為證券銷售。\n",
+      "這與美國證券交易委員會（SEC）在卸任主席蓋瑞·詹斯勒（Gary Gensler）領導下，試圖聲稱對幾乎整個數位資產產業都擁有監管權力的做法，出現轉變的現象相符。而這可能對該產業產生影響，且影響範圍遠遠超出迷因幣的範疇。\n",
+      "在拜登政府執政期間，美國證券交易委員會（SEC）試圖監管數位資產，很大程度上取決於最高法院著名的「豪威測試」(Howey test)，該測試用於判斷一項交易是否涉及「投資合約」。 豪威測試要求將資金投資於一個共同的事業，並且期待從他人的努力中獲取利潤。\n",
+      "在美國證券交易委員會 (SEC) 針對數位資產交易所的執法行動中，被告辯稱，數位資產的二級市場轉售缺乏必要的「投資資金於共同事業」要素，因為投資者的資金並沒有被開發者「匯集」到一個共同基金中，然後用於進一步發展一項投資者分享利潤的事業。例如，在 SEC 針對 Kraken 的案件中，該機構告訴聯邦法院，開發者「匯集轉售所得」並非「Howey 法案」所要求的。\n",
+      "美國證券交易委員會（SEC）的最新指引證實了相反的觀點。 指引指出，迷因幣的購買者並未對共同事業進行投資，因為他們的資金「並未匯集起來，由發起人或其他第三方用於開發該幣種或相關企業。」 指引也解釋說，迷因幣的購買者並不期望從他人的努力中獲得利潤，這是豪威測試（Howey Test）的另一項要求。 相反地，迷因幣的價值來自於「投機性交易和市場的集體情緒，就像收藏品一樣。」\n",
+      "美國證券交易委員會 (SEC) 針對迷因幣的指導方針，最直接的影響顯然在於迷因幣的銷售和推廣，這些正是最近個別原告提起私人集體訴訟的標的。然而，它對所有數位資產的二級市場交易，包括在交易所上的交易，都有更廣泛的影響。在交易所上的二級市場交易中，購買者的資金同樣“不會被集中起來，由推廣者或其他第三方用於開發該幣或相關企業。” 因此，SEC 現在似乎承認，在正確應用 Howey 測試的情況下，這些交易超出了該機構的管轄範圍，正如被告在 SEC 之前的執法案件中一直主張的那樣。\n",
+      "這個教義上的反轉可能是一些動機的來源，這些動機驅使美國證券交易委員會 (SEC) 最近決定自願撤銷數起涉及二級市場交易的案件，並暫緩其他案件的進一步訴訟程序。\n",
+      "當然，美國證券交易委員會（SEC）的新指引包含了一些聲明，指出該指引「代表[機構]員工的觀點」，不一定代表證券交易委員會本身的立場，並且該聲明「不具備法律效力或影響」。證券交易委員會也試圖將該指引限制在發布內容中其他地方描述的特定情況下的「迷因幣的發行與銷售」。\n",
+      "該機構可能會試圖在未來某個時候，利用那些樣板化的序言來擺脫該指引的約束。但是，正當程序和公平通知的憲法原則可能會限制該機構基於任何未來的立場反覆，來施加追溯責任的能力。此外，雖然美國證券交易委員會（SEC）的指引對法院不具約束力，但SEC在資金池問題上的立場轉變，將使私人原告難以令人信服地辯稱大多數數位資產是以證券形式出售的。\n",
+      "美國證券交易委員會（SEC）關於迷因幣的指導方針，與該機構近期從前任主席蓋瑞·詹斯勒領導下困擾整個產業的「以執法來監管」方式退一步的其他舉措一致。而且，這項指導方針在一個該機構先前做法嚴重混淆視聽的領域，提供了令人歡迎的清晰度。簡而言之，對於美國的加密貨幣法律和政策而言，這是在正確方向上邁出的重要一步。\n",
+      "注意：本專欄所表達的觀點均為作者個人觀點，不一定反映 CoinDesk, Inc. 或其所有者和關聯公司的觀點。\n",
+      "傑森·門德羅 (Jason Mendro) 是吉布森鄧恩律師事務所 (Gibson Dunn) 在華盛頓特區的合夥人，也是證券訴訟業務部門的共同主席。\n",
+      "馬特·葛雷格里(Matt Gregory) 是吉布森·鄧恩律師事務所(Gibson, Dunn & Crutcher) 華盛頓特區辦公室的合夥人。他在該事務所的訴訟部門以及上訴和憲法法律及行政法業務組執業。\n",
+      "尼克·哈珀是 Gibson, Dunn & Crutcher 律師事務所華盛頓特區辦公室的合夥人。他在該事務所的訴訟部門執業，並且是該事務所的上訴和憲法法律業務組，以及行政法規和監管業務組的成員。\n"
+    ],
+    "summaryZh": "美國證券交易委員會(SEC)針對迷因幣發布的指引，聲明其通常不被視為證券銷售，可能意味著SEC在監管數位資產策略上出現轉變。此指引暗示，迷因幣購買者的資金並未被匯集，也不期望從他人努力中獲利，因此不符合“豪威測試”中“投資於共同事業”的定義。\n\n這與SEC先前試圖監管幾乎整個數位資產產業的立場形成鮮明對比，並可能影響更廣泛的數位資產二級市場交易，如交易所交易。SEC似乎間接承認，如果正確應用豪威測試，這些交易可能超出其監管範圍。此舉可能解釋了SEC近期撤銷或暫緩部分涉及二級市場交易案件的舉動。雖然SEC聲明該指引僅代表員工觀點且不具法律效力，但其立場的轉變或將使未來基於相同理由提起訴訟變得更加困難。總之，這項指引可能是SEC在加密貨幣法律和政策上，朝正確方向邁出的一步。\n"
+  }
+]

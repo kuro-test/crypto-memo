@@ -60,7 +60,7 @@ async function newsDetail(url, index) {
 
 async function makeJson(news) {
   const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '');
-  const filename = `news${timestamp}.json`;
+  const filename = `scraper/news${timestamp}.json`;
   fs.writeFileSync(filename, JSON.stringify(news, null, 2), 'utf-8');
   console.log(`News data has been saved to ${filename}`);
 }
@@ -90,4 +90,4 @@ async function newsCatchMain(count) {
   await makeJson(news);
 }
 
-newsCatchMain(2);
+newsCatchMain(10);

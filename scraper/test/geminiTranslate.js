@@ -67,26 +67,34 @@ async function run() {
 
     // 翻譯每篇新聞
     for (const news of newsData) {
-      console.log("🔄 開始翻譯文章...");
+      console.log(`\n🔄 開始翻譯第 ${news.id} 篇新聞...`);
       
-      // 翻譯 contentDetail
-      const translatedDetails = [];
-      for (const detail of news.contentDetail) {
-        const translated = await translateContent(detail);
-        if (translated) translatedDetails.push(translated);
-      }
-
-      // 添加翻譯內容
-      news.detailZh = translatedDetails;
+      console.log("🔄 開始翻譯標題...");
+      const translatedTitle = await translateContent(news.title);
       
-      // 等待 10 秒
-      console.log("⏳ 等待 30 秒後開始生成摘要...");
-      await delay(30000);
+      console.log("🔄 開始翻譯簡介...");
+      const translatedContent = await translateContent(news.content);
+      
+      console.log("🔄 開始翻譯文章內容...");
+      const translatedDetail = await translateContent(news.contentDetail);
+      
+      // 按照順序添加翻譯內容
+      news.titleZh = translatedTitle ? translatedTitle.replace(/\n$/, '') : null;
+      news.contentZh = translatedContent ? translatedContent.replace(/\n$/, '') : null;
+      news.detailZh = translatedDetail ? translatedDetail.replace(/\n$/, '') : null;
       
       // 生成摘要
       console.log("🔄 開始生成摘要...");
-      const summary = await generateSummary(translatedDetails.join('\n'));
-      news.summaryZh = summary;
+      const summary = await generateSummary(news.detailZh);
+      news.summaryZh = summary ? summary.split('。').join('。\n') : null;
+
+      console.log(`✅ 第 ${news.id} 篇新聞翻譯完成！`);
+      
+      // 如果不是最後一篇，等待 30 秒再處理下一篇
+      if (news.id < newsData.length) {
+        console.log("\n⏳ 等待 30 秒後開始下一篇...");
+        await delay(30000);
+      }
     }
 
     // 寫入新的 JSON 檔案
@@ -96,7 +104,7 @@ async function run() {
       'utf8'
     );
 
-    console.log("✅ 翻譯及摘要完成！已產生 newsTestTranslate.json");
+    console.log("\n✅ 全部新聞翻譯及摘要完成！已產生 newsTestTranslate.json");
   } catch (error) {
     console.error("❌ 處理過程發生錯誤:", error.message);
   }

@@ -1,3 +1,2 @@
-1.scraperMain.js產生的Json檔標籤contentDetail會有"",空格的情形發生，導致gemini call api翻譯時會請求過多
-方案1--->contentDetail都存成一個字串(但是要空格)
-方案2--->遇到"",時不要爬
+1.先搞定前端(報告可以顯現)
+2.搞定翻譯不要出現內容以外的字詞

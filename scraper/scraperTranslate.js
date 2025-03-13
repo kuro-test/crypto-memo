@@ -114,7 +114,7 @@ async function generateSummary(translatedContent) {
       history: [],
     });
 
-    const prompt = `Please summarize the key points of the following content in Traditional Chinese in no more than 300 words：\n\n${translatedContent}`;
+    const prompt = `請幫我總結以下內容的重點摘要（300字以內）：\n\n${translatedContent}`;
     const result = await chatSession.sendMessage(prompt);
     return result.response.text();
   } catch (error) {

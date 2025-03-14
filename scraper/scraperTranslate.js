@@ -114,7 +114,7 @@ async function generateSummary(translatedContent) {
       history: [],
     });
 
-    const prompt = `請幫我總結以下內容的重點摘要（300字以內）：\n\n${translatedContent}`;
+    const prompt = `請幫我用繁體中文總結以下內容的重點摘要（300字以內）：\n\n${translatedContent}`;
     const result = await chatSession.sendMessage(prompt);
     return result.response.text();
   } catch (error) {
@@ -126,6 +126,7 @@ async function generateSummary(translatedContent) {
 // 主要執行函數
 async function scraperTranslate(count) {
   try {
+    const timestamp = Date.now();
     console.log(`🔄 開始爬取 ${count} 篇新聞...`);
     const news = await fetchNewsLinks(count);
     const response = await axios.get(targetUrl);
@@ -136,9 +137,12 @@ async function scraperTranslate(count) {
     const content = $('p.font-body.text-charcoal-600.mb-4');
     const timeAgo = $('span.font-metadata.text-color-charcoal-600.uppercase');
 
-    const newsData = [];
+    // 建立新聞資料陣列，第一個物件只包含時間戳記
+    const newsData = [{ timestamp }];
+
+    // 先建立新聞資料結構
     for (let i = 0; i < count; i++) {
-      newsData[i] = {
+      newsData.push({
         id: i + 1,
         url: news[i].url,
         categories: categories.eq(i).text().trim(),
@@ -146,13 +150,14 @@ async function scraperTranslate(count) {
         content: content.eq(i).text().trim(),
         timeago: timeAgo.eq(i).text().trim(),
         ...news[i]
-      };
+      });
     }
 
     console.log("✅ 新聞爬取完成！開始翻譯...");
 
-    // 翻譯每篇新聞
-    for (const news of newsData) {
+    // 翻譯每篇新聞，從索引 1 開始（跳過時間戳記物件）
+    for (let i = 1; i < newsData.length; i++) {
+      const news = newsData[i];
       console.log(`\n🔄 開始翻譯第 ${news.id} 篇新聞...`);
       
       console.log("🔄 開始翻譯標題...");
@@ -164,7 +169,7 @@ async function scraperTranslate(count) {
       console.log("🔄 開始翻譯文章內容...");
       const translatedDetail = await translateContent(news.contentDetail);
       
-      // 按照順序添加翻譯內容
+      // 添加翻譯內容
       news.titleZh = translatedTitle ? translatedTitle.replace(/\n$/, '') : null;
       news.contentZh = translatedContent ? translatedContent.replace(/\n$/, '') : null;
       news.detailZh = translatedDetail ? translatedDetail.replace(/\n$/, '') : null;
@@ -175,18 +180,20 @@ async function scraperTranslate(count) {
 
       console.log(`✅ 第 ${news.id} 篇新聞翻譯完成！`);
       
-      if (news.id < newsData.length) {
+      if (i < newsData.length - 1) {
         console.log("\n⏳ 等待 10 秒後開始下一篇...");
         await delay(10000);
       }
     }
 
     // 儲存結果
-    const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '');
-    const filename = path.join(__dirname, `news${timestamp}.json`);
-    
-    fs.writeFileSync(filename, JSON.stringify(newsData, null, 2), 'utf-8');
-    console.log(`\n✅ 全部完成！已產生 ${filename}`);
+    const filename = path.join(__dirname, 'news.json');
+    try {
+      fs.writeFileSync(filename, JSON.stringify(newsData, null, 2), 'utf-8');
+      console.log(`\n✅ 已更新 ${filename}`);
+    } catch (error) {
+      console.error("❌ 處理過程發生錯誤:", error.message);
+    }
   } catch (error) {
     console.error("❌ 處理過程發生錯誤:", error.message);
   }

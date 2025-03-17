@@ -187,10 +187,10 @@ async function scraperTranslate(count) {
     }
 
     // 儲存結果
-    const filename = path.join(__dirname, 'news.json');
+    const filePath = path.join(__dirname, '..', 'frontend', 'public', 'news.json');
     try {
-      fs.writeFileSync(filename, JSON.stringify(newsData, null, 2), 'utf-8');
-      console.log(`\n✅ 已更新 ${filename}`);
+      fs.writeFileSync(filePath, JSON.stringify(newsData, null, 2), 'utf-8');
+      console.log(`\n✅ 已更新 ${filePath}`);
     } catch (error) {
       console.error("❌ 處理過程發生錯誤:", error.message);
     }

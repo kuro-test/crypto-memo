@@ -329,7 +329,7 @@ const NoteModal = () => {
           <h2 className="text-xl font-semibold text-yellow-400">新增筆記</h2>
           <button 
             onClick={() => setIsNoteModalOpen(false)}
-            className="text-gray-400 hover:text-white cursor-pointer" // 加入 cursor-pointer
+            className="text-gray-400 hover:text-white"
           >
             ✕
           </button>
@@ -381,13 +381,6 @@ const NoteModal = () => {
     </div>
   );
 };
-
-  // 新增處理儀表板添加到筆記的函數
-  const handleGaugeAddToNote = (gaugeStatus) => {
-    setEditingTitle("恐懼貪婪指數快照");
-    setEditingContent(gaugeStatus);
-    setIsNoteModalOpen(true);
-  };
 
   // 修改登入表單部分
   if (!isLoggedIn) {
@@ -543,7 +536,7 @@ const NoteModal = () => {
         </h2>
         <div className="flex-1 overflow-y-auto flex flex-col items-center">
           <div className="w-full bg-gray-700 p-4 rounded-lg">
-            <GaugeChart onAddToNote={handleGaugeAddToNote} />
+            <GaugeChart />
           </div>
         </div>
       </div>

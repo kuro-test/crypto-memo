@@ -1,35 +1,18 @@
-目前產生出的Json檔是這樣:
 [
-  {
-    "timestamp": "20250314003440356",
-    "titleZh":...,
-    "contentZh":...,
-    "detailZh":...,
-    "summaryZh":...
-  },
-  {
-    "id": 1,
-    "url": "...",
-    "categories": "...",
-    "title": "...",
-    "content": "...",
-    "timeago": "...",
-    .....
+{
+  "id": "fear&greed",
+  "data": {
+    "timestamp": "",
+    "value": ,
+    "value_classification": ""
   }
-]
-
-我想要這樣:
-[
-  {
-    "timestamp": "20250314003440356"
-  },
-  {
-    "id": 1,
-    "url": "...",
-    "categories": "...",
-    "title": "...",
-    "content": "...",
-    "timeago": "...",
-    .....
-  }
+}, {
+    id:"altcoin-index",
+    "data":{timestamp: "",
+    "value": ,
+    status: "",
+    title: "",
+    tooltip:""}
+    
+        }
 ]

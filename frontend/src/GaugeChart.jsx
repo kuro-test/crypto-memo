@@ -5,7 +5,7 @@ import axios from "axios";
 
 ChartJS.register(ArcElement, Tooltip);
 
-const GaugeChart = ({ onAddToNote }) => {  // 添加 props
+const GaugeChart = ({ onAddToNote }) => {
   const [indexValue, setIndexValue] = useState(50);
   const [label, setLabel] = useState("中性");
 
@@ -15,17 +15,18 @@ const GaugeChart = ({ onAddToNote }) => {  // 添加 props
         console.log("🔄 正在讀取本地資料...");
         
         const response = await axios.get('/index.json');
-        const data = response.data;
+        // 找到對應的指數資料
+        const fearGreedData = response.data.find(item => item.id === "fear&greed");
         
-        if (data && data.data) {
-          const fearGreedData = data.data;
+        if (fearGreedData && fearGreedData.data) {
+          const data = fearGreedData.data;
           console.log("📊 最新指數資料:", {
-            時間戳記: fearGreedData.timestamp,
-            數值: fearGreedData.value,
-            狀態: fearGreedData.value_classification
+            時間戳記: data.timestamp,
+            數值: data.value,
+            狀態: data.value_classification
           });
 
-          setIndexValue(fearGreedData.value);
+          setIndexValue(parseInt(data.value));
 
           // 將英文狀態轉換為中文
           const statusMap = {
@@ -35,26 +36,28 @@ const GaugeChart = ({ onAddToNote }) => {  // 添加 props
             'Greed': '貪婪',
             'Extreme Greed': '極度貪婪'
           };
-          setLabel(statusMap[fearGreedData.value_classification] || fearGreedData.value_classification);
+          setLabel(statusMap[data.value_classification] || data.value_classification);
 
           console.log("✅ 資料更新成功");
+        } else {
+          console.error("❌ 找不到恐懼貪婪指數資料");
         }
       } catch (error) {
         console.error("❌ 讀取失敗:", error.message);
+        console.error("錯誤詳情:", error);
       }
     };
 
-    // 初次載入時讀取資料
     fetchFearAndGreedIndex();
   }, []);
 
   // 設定顏色區間
   const backgroundColors = [
-    "red", // 恐懼
-    "orange",
-    "yellow",
-    "lightgreen",
-    "green", // 貪婪
+    "#ff0000", // 極度恐懼
+    "#ff4500", // 恐懼
+    "#ffa500", // 中性
+    "#9acd32", // 貪婪
+    "#008000"  // 極度貪婪
   ];
 
   // 設定對應區間的顏色
@@ -76,6 +79,9 @@ const GaugeChart = ({ onAddToNote }) => {  // 添加 props
           "rgba(0, 0, 0, 0.1)", // 透明區域
         ],
         borderWidth: 0,
+        cutout: "80%",
+        rotation: 270,
+        circumference: 180,
       },
     ],
   };
@@ -92,19 +98,24 @@ const GaugeChart = ({ onAddToNote }) => {  // 添加 props
   };
 
   return (
-    // 將 group 類別移到最外層容器
     <div className="flex flex-col items-center justify-center w-full relative group">
-      <h3 className="text-sm font-semibold text-white-400 mb-2">
+      <h3 className="text-base font-semibold text-white-400 mb-0">
         加密貨幣恐懼貪婪
       </h3>
       <div className="relative w-48 h-48">
-        <Doughnut data={data} options={{ cutout: "80%" }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <p className="text-2xl font-bold">{indexValue}</p>
-          <p className="text-sm text-gray-500">{label}</p>
+        {/* 半圓圖表 */}
+        <Doughnut data={data} options={{ cutout: "70%", rotation: 270, circumference: 180 }} />
+        
+        {/* 中心數值和狀態 */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ marginTop: '35px' }}>
+          <p className="text-4xl font-bold">{indexValue}</p>
+          <p className="text-base font-bold" style={{ 
+            color: backgroundColors[getColorIndex(indexValue)]  // 使用與半圓相同的顏色
+          }}>{label}</p>
         </div>
       </div>
-      {/* 修改按鈕位置到外層容器 */}
+      
+      {/* 新增按鈕 */}
       <button
         onClick={handleAddToNote}
         className="absolute bottom-2 right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer hover:bg-yellow-600"

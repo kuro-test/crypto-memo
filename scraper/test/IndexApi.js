@@ -4,6 +4,12 @@ const path = require('path');
 require('dotenv').config();
 
 async function fetchFearAndGreedIndex() {
+  // 先檢查 API 金鑰
+  const apiKey = process.env.CMC_API_KEY;
+  if (!apiKey) {
+    console.error("❌ 找不到 API 金鑰，請確認 .env 檔案設定");
+    return;
+  }
   try {
     console.log("🔄 正在發送 API 請求...");
     
@@ -11,7 +17,8 @@ async function fetchFearAndGreedIndex() {
       "https://pro-api.coinmarketcap.com/v3/fear-and-greed/historical",
       {
         headers: {
-          "X-CMC_PRO_API_KEY": process.env.CMC_API_KEY
+          'X-CMC_PRO_API_KEY': apiKey,
+          'Accept': 'application/json'
         },
         params: {
           limit: 1
@@ -40,6 +47,7 @@ async function fetchFearAndGreedIndex() {
     if (error.response) {
       console.error("📌 錯誤狀態:", error.response.status);
       console.error("📌 錯誤資料:", error.response.data);
+      console.error("📌 請求標頭:", error.config.headers);
     } else {
       console.error("📌 錯誤訊息:", error.message);
     }

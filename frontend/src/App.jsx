@@ -311,6 +311,13 @@ ${news.url}
     setIsNoteModalOpen(true);
   };
 
+  // 修改筆記視窗關閉按鈕的處理函數
+  const handleCloseNoteModal = () => {
+    setIsNoteModalOpen(false);
+    setEditingTitle("");    // 清空標題
+    setEditingContent("");  // 清空內容
+  };
+
   // 修改筆記視窗組件
   const NoteModal = () => {
     const [localTitle, setLocalTitle] = useState(editingTitle);
@@ -324,13 +331,13 @@ ${news.url}
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div  
-          className="bg-gray-800 p-6 rounded-lg w-3/4 max-w-3xl" // 調整寬度和最大寬度
+          className="bg-gray-800 p-6 rounded-lg w-3/4 max-w-3xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-yellow-400">新增筆記</h2>  {/* 放大標題 */}
+            <h2 className="text-xl font-semibold text-yellow-400">新增筆記</h2>
             <button
-              onClick={() => setIsNoteModalOpen(false)}
+              onClick={handleCloseNoteModal}  /* 改用新的關閉處理函數 */
               className="text-gray-400 hover:text-white cursor-pointer"
             >
               ✕
@@ -351,11 +358,7 @@ ${news.url}
           />
           <div className="flex justify-end gap-3">
             <button
-              onClick={() => {
-                setIsNoteModalOpen(false);
-                setEditingTitle("");
-                setEditingContent("");
-              }}
+              onClick={handleCloseNoteModal}  /* 取消按鈕也使用同一個處理函數 */
               className="px-5 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors cursor-pointer"
             >
               取消

@@ -313,7 +313,6 @@ ${news.url}
 
   // 修改筆記視窗組件
   const NoteModal = () => {
-    // 新增本地狀態來處理輸入
     const [localTitle, setLocalTitle] = useState(editingTitle);
     const [localContent, setLocalContent] = useState(editingContent);
 
@@ -324,15 +323,15 @@ ${news.url}
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div
-          className="bg-gray-800 p-6 rounded-lg w-3/4 max-w-3xl" // 調整寬度
+        <div  
+          className="bg-gray-800 p-6 rounded-lg w-3/4 max-w-3xl" // 調整寬度和最大寬度
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-yellow-400">新增筆記</h2>
+            <h2 className="text-xl font-semibold text-yellow-400">新增筆記</h2>  {/* 放大標題 */}
             <button
               onClick={() => setIsNoteModalOpen(false)}
-              className="text-gray-400 hover:text-white cursor-pointer" // 加入 cursor-pointer
+              className="text-gray-400 hover:text-white cursor-pointer"
             >
               ✕
             </button>
@@ -342,22 +341,22 @@ ${news.url}
             value={localTitle}
             onChange={(e) => setLocalTitle(e.target.value)}
             placeholder="標題"
-            className="w-full p-3 mb-4 rounded-md bg-gray-700 text-white"
+            className="w-full p-3 mb-4 rounded-md bg-gray-700 text-white text-base"  /* 增加內邊距 */
           />
           <textarea
             value={localContent}
             onChange={(e) => setLocalContent(e.target.value)}
             placeholder="內容"
-            className="w-full h-150 p-3 mb-4 rounded-md bg-gray-700 text-white resize-none" // 調整高度
+            className="w-full h-72 p-3 mb-4 rounded-md bg-gray-700 text-white resize-none text-base" /* 增加高度和內邊距 */
           />
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-3">
             <button
               onClick={() => {
                 setIsNoteModalOpen(false);
                 setEditingTitle("");
                 setEditingContent("");
               }}
-              className="px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors"
+              className="px-5 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors cursor-pointer"
             >
               取消
             </button>
@@ -375,7 +374,7 @@ ${news.url}
                   setEditingContent("");
                 }
               }}
-              className="px-4 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors"
+              className="px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
             >
               儲存
             </button>

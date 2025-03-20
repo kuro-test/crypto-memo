@@ -10,8 +10,8 @@
   {
     "id": "altcoin-index",
     "data": {
-      "timestamp": "1742343935",
-      "value": "43",
+      "timestamp": "1742429583",
+      "value": "45",
       "status": "It is not Altcoin Month!",
       "title": "Altcoin Month Index",
       "tooltip": "If 75% of the Top 50 coins performed better than Bitcoin over the last 30 days it is Altcoin Month"

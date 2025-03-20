@@ -2,15 +2,15 @@
   {
     "id": "fear&greed",
     "data": {
-      "timestamp": "1742256000",
-      "value": 25,
+      "timestamp": "1742342400",
+      "value": 23,
       "value_classification": "Fear"
     }
   },
   {
     "id": "altcoin-index",
     "data": {
-      "timestamp": "1742429583",
+      "timestamp": "1742451943",
       "value": "45",
       "status": "It is not Altcoin Month!",
       "title": "Altcoin Month Index",

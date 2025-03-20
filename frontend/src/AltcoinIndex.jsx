@@ -57,7 +57,7 @@ const AltcoinIndex = ({ onAddToNote }) => {
   timeZone: "Asia/Taipei",
 })}`;
 
-    onAddToNote(currentStatus);
+    onAddToNote(currentStatus, '山寨幣月份');  // 傳入類型參數
   };
 
   return (

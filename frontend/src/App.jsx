@@ -384,9 +384,9 @@ ${news.url}
     );
   };
 
-  // 新增處理儀表板添加到筆記的函數
-  const handleGaugeAddToNote = (gaugeStatus) => {
-    setEditingTitle("恐懼貪婪指數快照");
+  // 修改處理儀表板添加到筆記的函數
+  const handleGaugeAddToNote = (gaugeStatus, type = '恐懼貪婪') => {  // 添加 type 參數
+    setEditingTitle(`${type}指數快照`);
     setEditingContent(gaugeStatus);
     setIsNoteModalOpen(true);
   };

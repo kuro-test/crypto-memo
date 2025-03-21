@@ -187,7 +187,7 @@ async function scraperTranslate(count) {
     }
 
     // 儲存結果
-    const filePath = path.join(__dirname, '..', 'frontend', 'public', 'news.json');
+    const filePath = path.join(__dirname, '..','..', 'frontend', 'public', 'news.json');
     try {
       fs.writeFileSync(filePath, JSON.stringify(newsData, null, 2), 'utf-8');
       console.log(`\n✅ 已更新 ${filePath}`);
@@ -199,5 +199,107 @@ async function scraperTranslate(count) {
   }
 }
 
-// 執行程式
-scraperTranslate(10);
+// 測試路徑是否有效的函數
+function testFilePath(filePath) {
+  console.log('\n🔍 測試路徑是否有效...');
+  console.log(`📂 完整路徑: ${filePath}`);
+  
+  // 檢查目錄是否存在
+  const dirPath = path.dirname(filePath);
+  const dirExists = fs.existsSync(dirPath);
+  console.log(`📁 目錄 "${dirPath}" ${dirExists ? '存在 ✅' : '不存在 ❌'}`);
+  
+  // 如果目錄不存在，嘗試創建
+  if (!dirExists) {
+    try {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`📁 已創建目錄 "${dirPath}" ✅`);
+    } catch (error) {
+      console.log(`📁 無法創建目錄 "${dirPath}" ❌: ${error.message}`);
+      return false;
+    }
+  }
+  
+  // 檢查是否可寫入
+  let isWritable = false;
+  try {
+    // 嘗試在目錄中創建一個臨時文件
+    const testPath = path.join(dirPath, 'test_write_permission.tmp');
+    fs.writeFileSync(testPath, 'test', { flag: 'w' });
+    fs.unlinkSync(testPath); // 立即刪除測試文件
+    isWritable = true;
+    console.log(`📝 目錄可寫入 ✅`);
+  } catch (error) {
+    console.log(`📝 目錄不可寫入 ❌: ${error.message}`);
+    return false;
+  }
+  
+  // 輸出整體結論
+  console.log(`\n✅ 路徑檢查通過，可以安全地寫入文件`);
+  return true;
+}
+
+// 確保目錄存在的輔助函數
+function ensureDirectoryExists(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    try {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`📁 已創建目錄 "${dirPath}" ✅`);
+      return true;
+    } catch (error) {
+      console.log(`📁 無法創建目錄 "${dirPath}" ❌: ${error.message}`);
+      return false;
+    }
+  }
+  return true;
+}
+
+// 修改執行程式部分，在執行前先檢查兩個路徑
+const frontendFilePath = path.join(__dirname, '..','..', 'frontend', 'public', 'news.json');
+const backendFilePath = path.join(__dirname, '..', 'database', 'newsdata', 'news.json');
+
+// 檢查前端路徑是否有效
+const frontendPathValid = testFilePath(frontendFilePath);
+console.log('\n=== 前端路徑檢查完成 ===\n');
+
+// 檢查後端路徑是否有效
+// 確保 database/newsdata 目錄存在
+const backendDirPath = path.dirname(backendFilePath);
+const backendDirExists = ensureDirectoryExists(backendDirPath);
+const backendPathValid = backendDirExists && testFilePath(backendFilePath);
+console.log('\n=== 後端路徑檢查完成 ===\n');
+
+// 修改 scraperTranslate 函數的儲存結果部分
+const originalScraperTranslate = scraperTranslate;
+scraperTranslate = async function(count) {
+  try {
+    await originalScraperTranslate(count);
+    
+    // 從前端路徑讀取最新的數據
+    const newsData = JSON.parse(fs.readFileSync(frontendFilePath, 'utf-8'));
+    
+    // 同時儲存到後端路徑
+    try {
+      fs.writeFileSync(backendFilePath, JSON.stringify(newsData, null, 2), 'utf-8');
+      console.log(`\n✅ 同時已更新 ${backendFilePath}`);
+    } catch (error) {
+      console.error(`\n❌ 儲存到後端路徑時發生錯誤: ${error.message}`);
+    }
+  } catch (error) {
+    console.error(`\n❌ 執行爬蟲時發生錯誤: ${error.message}`);
+  }
+};
+
+// 只有當兩個路徑都有效時，才執行爬蟲程序
+if (frontendPathValid && backendPathValid) {
+  console.log('\n🚀 開始執行爬蟲程序...\n');
+  scraperTranslate(10);
+} else {
+  console.error('\n❌ 路徑檢查失敗，無法執行爬蟲程序');
+  if (!frontendPathValid) {
+    console.log('👉 請檢查前端目錄: frontend/public/');
+  }
+  if (!backendPathValid) {
+    console.log('👉 請檢查後端目錄: backend/database/newsdata/');
+  }
+}

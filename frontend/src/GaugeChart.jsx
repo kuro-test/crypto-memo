@@ -27,16 +27,9 @@ const GaugeChart = ({ onAddToNote }) => {
           });
 
           setIndexValue(parseInt(data.value));
-
-          // 將英文狀態轉換為中文
-          const statusMap = {
-            'Extreme Fear': '極度恐懼',
-            'Fear': '恐懼',
-            'Neutral': '中性',
-            'Greed': '貪婪',
-            'Extreme Greed': '極度貪婪'
-          };
-          setLabel(statusMap[data.value_classification] || data.value_classification);
+          
+          // 直接使用中文狀態
+          setLabel(data.value_classification);
 
           console.log("✅ 資料更新成功");
         } else {
@@ -69,6 +62,20 @@ const GaugeChart = ({ onAddToNote }) => {
     return 4;
   };
 
+  // 獲取對應標籤的顏色
+  const getLabelColorIndex = (labelText) => {
+    const labels = {
+      "極度恐懼": 0,
+      "極度恐慌": 0,
+      "恐懼": 1,
+      "恐慌": 1,
+      "中性": 2,
+      "貪婪": 3,
+      "極度貪婪": 4
+    };
+    return labels[labelText] !== undefined ? labels[labelText] : getColorIndex(indexValue);
+  };
+
   // 設定儀表板數據
   const data = {
     datasets: [
@@ -87,7 +94,7 @@ const GaugeChart = ({ onAddToNote }) => {
   };
 
   const handleAddToNote = () => {
-    const currentStatus = `加密貨幣恐懼貪婪指數
+    const currentStatus = `比特幣恐懼貪婪指數
 數值: ${indexValue}
 狀態: ${label}
 時間: ${new Date().toLocaleString("zh-TW", {
@@ -100,7 +107,7 @@ const GaugeChart = ({ onAddToNote }) => {
   return (
     <div className="flex flex-col items-center justify-center w-full relative group">
       <h3 className="text-base font-semibold text-white-400 mb-0">
-        加密貨幣恐懼貪婪
+        比特幣恐懼貪婪
       </h3>
       <div className="relative w-48 h-48">
         {/* 半圓圖表 */}
@@ -110,7 +117,7 @@ const GaugeChart = ({ onAddToNote }) => {
         <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ marginTop: '35px' }}>
           <p className="text-4xl font-bold">{indexValue}</p>
           <p className="text-base font-bold" style={{ 
-            color: backgroundColors[getColorIndex(indexValue)]  // 使用與半圓相同的顏色
+            color: backgroundColors[getLabelColorIndex(label)]  // 使用與半圓相同的顏色，但根據標籤文字決定
           }}>{label}</p>
         </div>
       </div>

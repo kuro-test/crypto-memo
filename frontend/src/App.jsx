@@ -133,29 +133,167 @@ function App() {
 
   // 修改 NewsDetail 組件
   const NewsDetail = ({ news }) => {
+    // 添加選擇模態窗狀態
+    const [showSelectionModal, setShowSelectionModal] = useState(false);
+    // 修改選擇的區塊狀態，只預設勾選簡介和重點摘要
+    const [selectedSections, setSelectedSections] = useState({
+      intro: true,      // 預設勾選
+      summary: true,    // 預設勾選
+      detail: false,    // 預設不勾選
+      original: false,  // 預設不勾選
+      source: false     // 預設不勾選
+    });
+
     // 在 NewsDetail 組件中修改 handleAddToNote 函數
     const handleAddToNote = () => {
-      const newsContent = `
-簡介：
+      // 先顯示選擇模態窗
+      setShowSelectionModal(true);
+    };
+    
+    // 處理最終確認加入筆記
+    const handleConfirmAddToNote = () => {
+      // 檢查是否至少選擇了一個區塊
+      const hasSelection = Object.values(selectedSections).some(value => value);
+      
+      if (!hasSelection) {
+        // 如果沒有選擇任何區塊，至少添加標題
+        setEditingTitle(news.titleZh);
+        setEditingContent("");
+        setIsNoteModalOpen(true);
+        setShowSelectionModal(false);
+        return;
+      }
+      
+      // 根據選擇的區塊構建內容
+      let newsContent = '';
+      
+      if (selectedSections.intro) {
+        newsContent += `簡介：
 ${news.contentZh}
 
-重點摘要：
+`;
+      }
+      
+      if (selectedSections.summary) {
+        newsContent += `重點摘要：
 ${news.summaryZh}
 
-詳細內容：
+`;
+      }
+      
+      if (selectedSections.detail) {
+        newsContent += `詳細內容：
 ${news.detailZh}
 
-原文：
+`;
+      }
+      
+      if (selectedSections.original) {
+        newsContent += `原文：
 ${news.contentDetail}
 
-出處：
-${news.url}
-    `.trim();
+`;
+      }
+      
+      if (selectedSections.source) {
+        newsContent += `出處：
+${news.url}`;
+      }
 
       setEditingTitle(news.titleZh); // 標題仍然設定為新聞標題
-      setEditingContent(newsContent); // 但內容不包含標題
+      setEditingContent(newsContent.trim()); // 但內容不包含標題
       setIsNoteModalOpen(true);
+      setShowSelectionModal(false); // 關閉選擇模態窗
     };
+    
+    // 選擇區塊模態窗組件
+    const SelectionModal = () => (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-gray-800 p-6 rounded-lg w-96 max-w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-yellow-400">選擇要添加的內容</h2>
+            <button
+              onClick={() => setShowSelectionModal(false)}
+              className="text-gray-400 hover:text-white cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="intro"
+                checked={selectedSections.intro}
+                onChange={(e) => setSelectedSections({...selectedSections, intro: e.target.checked})}
+                className="w-5 h-5 mr-3 accent-yellow-500"
+              />
+              <label htmlFor="intro" className="text-white text-lg cursor-pointer">簡介</label>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="summary"
+                checked={selectedSections.summary}
+                onChange={(e) => setSelectedSections({...selectedSections, summary: e.target.checked})}
+                className="w-5 h-5 mr-3 accent-yellow-500"
+              />
+              <label htmlFor="summary" className="text-white text-lg cursor-pointer">重點摘要</label>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="detail"
+                checked={selectedSections.detail}
+                onChange={(e) => setSelectedSections({...selectedSections, detail: e.target.checked})}
+                className="w-5 h-5 mr-3 accent-yellow-500"
+              />
+              <label htmlFor="detail" className="text-white text-lg cursor-pointer">詳細內容</label>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="original"
+                checked={selectedSections.original}
+                onChange={(e) => setSelectedSections({...selectedSections, original: e.target.checked})}
+                className="w-5 h-5 mr-3 accent-yellow-500"
+              />
+              <label htmlFor="original" className="text-white text-lg cursor-pointer">原文</label>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="source"
+                checked={selectedSections.source}
+                onChange={(e) => setSelectedSections({...selectedSections, source: e.target.checked})}
+                className="w-5 h-5 mr-3 accent-yellow-500"
+              />
+              <label htmlFor="source" className="text-white text-lg cursor-pointer">出處</label>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowSelectionModal(false)}
+              className="px-5 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors cursor-pointer"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleConfirmAddToNote}
+              className="px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
+            >
+              添加至筆記
+            </button>
+          </div>
+        </div>
+      </div>
+    );
 
     return (
       <div className="bg-gray-800 p-6 rounded-lg">
@@ -223,6 +361,9 @@ ${news.url}
             </a>
           </div>
         </div>
+        
+        {/* 選擇區塊模態窗 */}
+        {showSelectionModal && <SelectionModal />}
       </div>
     );
   };
@@ -555,11 +696,13 @@ ${news.url}
           <div className="w-full bg-gray-700 p-4 rounded-lg">
             <AltcoinIndex onAddToNote={handleGaugeAddToNote} />
           </div>
-          {/* 新增開發中提示區塊 */}
-          <div className="w-full p-4 rounded-lg border-2 border-dashed border-white/50">
-            <p className="text-center text-white/70 font-medium">
-              新指數功能開發中
-            </p>
+          {/* 修改開發中提示區塊為正方形 */}
+          <div className="w-full flex justify-center">
+            <div className="w-48 h-48 p-4 rounded-lg border-2 border-dashed border-white/50 flex items-center justify-center">
+              <p className="text-center text-white/70 font-medium">
+                新指數功能開發中
+              </p>
+            </div>
           </div>
         </div>
       </div>

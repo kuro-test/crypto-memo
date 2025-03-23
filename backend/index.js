@@ -1,18 +1,17 @@
 // backend/index.js
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-
+const express = require('express');
 const app = express();
-app.use(cors());
+const PORT = 3000;
+
+// middleware
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("CoinDesk 爬蟲 API 運行中 🚀");
+// sample API route
+app.get('/api/hello', (req, res) => {
+  res.json({ message: 'Hello, world!' });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-
-require("./db"); // 確保後端啟動時連接 PostgreSQL
+// 啟動 server
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});

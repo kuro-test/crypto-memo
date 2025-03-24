@@ -53,7 +53,7 @@ function App() {
       const tryApiEndpoints = async () => {
         const endpoints = [
           'http://localhost:3000/api/news',
-          'https://your-railway-app-name.railway.app/api/news'//部署後記得改
+          'https://crypto-memo-production.up.railway.app/api/news'//部署後記得改
         ];
         
         let succeeded = false;

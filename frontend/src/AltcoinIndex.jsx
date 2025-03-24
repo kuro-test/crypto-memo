@@ -23,7 +23,7 @@ const AltcoinIndex = ({ onAddToNote }) => {
       // 定義要嘗試的 API 端點
       const endpoints = [
         'http://localhost:3000/api/index',
-        'https://your-railway-app-name.railway.app/api/index', //部署後記得改
+        'https://crypto-memo-production.up.railway.app/api/index', //部署後記得改
       ];
       
       let succeeded = false;

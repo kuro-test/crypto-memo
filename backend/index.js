@@ -5,7 +5,8 @@ const fs = require('fs');
 const cors = require('cors');
 const { exec, spawn } = require('child_process');
 const app = express();
-const PORT = process.env.PORT || 3000;
+const
+ PORT = process.env.PORT || 3000;
 
 // 配置 CORS 允許指定來源訪問
 const corsOptions = {
@@ -46,11 +47,34 @@ app.use((req, res, next) => {
   next();
 });
 
-// 讀取 index.json 文件
+// 讀取 index.json 文件 - 同樣加上更靈活的路徑處理
 app.get('/api/index', (req, res) => {
-  const indexPath = path.join(__dirname, 'database', 'newsData', 'index.json');
+  // 嘗試多個可能的路徑
+  const possiblePaths = [
+    path.join(__dirname, 'database', 'newsData', 'index.json'), // 原始路徑 (大寫 D)
+    path.join(__dirname, 'database', 'newsdata', 'index.json'), // 小寫 d
+    '/app/database/newsdata/index.json',                        // 與爬蟲一致的路徑
+  ];
   
-  fs.readFile(indexPath, 'utf8', (err, data) => {
+  let foundPath = null;
+  
+  // 找到第一個存在的路徑
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      foundPath = p;
+      console.log(`找到 index.json 檔案在: ${p}`);
+      break;
+    }
+  }
+  
+  if (!foundPath) {
+    console.error('無法找到 index.json 檔案，嘗試過的路徑:');
+    possiblePaths.forEach(p => console.error(`- ${p}`));
+    return res.status(500).json({ error: '無法讀取指數數據' });
+  }
+  
+  // 使用找到的路徑讀取檔案
+  fs.readFile(foundPath, 'utf8', (err, data) => {
     if (err) {
       console.error('讀取 index.json 時發生錯誤:', err);
       return res.status(500).json({ error: '無法讀取指數數據' });
@@ -59,6 +83,7 @@ app.get('/api/index', (req, res) => {
     try {
       // 將 JSON 字串解析為物件後回傳
       const indexData = JSON.parse(data);
+      console.log(`成功讀取指數數據`);
       res.json(indexData);
     } catch (parseErr) {
       console.error('解析 index.json 時發生錯誤:', parseErr);
@@ -67,11 +92,34 @@ app.get('/api/index', (req, res) => {
   });
 });
 
-// 讀取 news.json 文件
+// 讀取 news.json 文件 - 修改為更靈活的路徑處理
 app.get('/api/news', (req, res) => {
-  const newsPath = path.join(__dirname, 'database', 'newsData', 'news.json');
+  // 嘗試多個可能的路徑
+  const possiblePaths = [
+    path.join(__dirname, 'database', 'newsData', 'news.json'), // 原始路徑 (大寫 D)
+    path.join(__dirname, 'database', 'newsdata', 'news.json'), // 小寫 d
+    '/app/database/newsdata/news.json',                        // 爬蟲日誌中顯示的路徑
+  ];
   
-  fs.readFile(newsPath, 'utf8', (err, data) => {
+  let foundPath = null;
+  
+  // 找到第一個存在的路徑
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      foundPath = p;
+      console.log(`找到 news.json 檔案在: ${p}`);
+      break;
+    }
+  }
+  
+  if (!foundPath) {
+    console.error('無法找到 news.json 檔案，嘗試過的路徑:');
+    possiblePaths.forEach(p => console.error(`- ${p}`));
+    return res.status(500).json({ error: '無法讀取新聞數據' });
+  }
+  
+  // 使用找到的路徑讀取檔案
+  fs.readFile(foundPath, 'utf8', (err, data) => {
     if (err) {
       console.error('讀取 news.json 時發生錯誤:', err);
       return res.status(500).json({ error: '無法讀取新聞數據' });
@@ -80,6 +128,7 @@ app.get('/api/news', (req, res) => {
     try {
       // 將 JSON 字串解析為物件後回傳
       const newsData = JSON.parse(data);
+      console.log(`成功讀取新聞數據，有 ${newsData.length || 0} 條記錄`);
       res.json(newsData);
     } catch (parseErr) {
       console.error('解析 news.json 時發生錯誤:', parseErr);
@@ -208,6 +257,93 @@ app.get('/', (req, res) => {
 // 添加 404 路由處理
 app.use((req, res) => {
   res.status(404).json({ error: '找不到請求的資源' });
+});
+
+// 新增診斷端點以檢查文件系統
+app.get('/api/debug/files', (req, res) => {
+  const diagnostics = {
+    currentDirectory: __dirname,
+    paths: {
+      // 檢查 news.json
+      news: [
+        { path: path.join(__dirname, 'database', 'newsData', 'news.json') },
+        { path: path.join(__dirname, 'database', 'newsdata', 'news.json') },
+        { path: '/app/database/newsdata/news.json' }
+      ],
+      // 檢查 index.json
+      index: [
+        { path: path.join(__dirname, 'database', 'newsData', 'index.json') },
+        { path: path.join(__dirname, 'database', 'newsdata', 'index.json') },
+        { path: '/app/database/newsdata/index.json' }
+      ]
+    }
+  };
+  
+  // 檢查每個路徑的存在情況與大小
+  ['news', 'index'].forEach(fileType => {
+    diagnostics.paths[fileType].forEach(item => {
+      try {
+        if (fs.existsSync(item.path)) {
+          const stats = fs.statSync(item.path);
+          item.exists = true;
+          item.size = stats.size;
+          item.isFile = stats.isFile();
+          
+          if (stats.isFile() && stats.size < 100000) { // 只讀取小於 100KB 的檔案預覽
+            try {
+              const content = fs.readFileSync(item.path, 'utf8');
+              item.preview = content.substring(0, 150) + '...';
+            } catch (readErr) {
+              item.readError = readErr.message;
+            }
+          }
+        } else {
+          item.exists = false;
+        }
+      } catch (err) {
+        item.exists = false;
+        item.error = err.message;
+      }
+    });
+  });
+  
+  // 檢查目錄結構
+  try {
+    // 檢查 __dirname 的目錄結構
+    if (fs.existsSync(__dirname)) {
+      diagnostics.dirContents = {
+        root: fs.readdirSync(__dirname)
+      };
+      
+      // 檢查數據庫目錄
+      const dbDirPaths = [
+        path.join(__dirname, 'database'),
+        '/app/database'
+      ];
+      
+      dbDirPaths.forEach(dbPath => {
+        if (fs.existsSync(dbPath)) {
+          diagnostics.dirContents[`db_${dbPath}`] = fs.readdirSync(dbPath);
+          
+          // 檢查 newsdata/newsData 目錄
+          const newsDirPaths = [
+            path.join(dbPath, 'newsdata'),
+            path.join(dbPath, 'newsData')
+          ];
+          
+          newsDirPaths.forEach(newsDir => {
+            if (fs.existsSync(newsDir)) {
+              diagnostics.dirContents[`newsdir_${newsDir}`] = fs.readdirSync(newsDir);
+            }
+          });
+        }
+      });
+    }
+  } catch (err) {
+    diagnostics.dirError = err.message;
+  }
+  
+  res.json(diagnostics);
 });
 
 // 啟動 server

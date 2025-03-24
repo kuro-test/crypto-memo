@@ -9,6 +9,20 @@ const GaugeChart = ({ onAddToNote }) => {
   const [indexValue, setIndexValue] = useState(50);
   const [label, setLabel] = useState("中性");
   const [error, setError] = useState(null);
+  // 新增一個狀態用於追踪移動設備上的觸控激活狀態
+  const [isTouchActive, setIsTouchActive] = useState(false);
+
+  // 添加處理觸控事件的函數
+  const handleTouchStart = () => {
+    setIsTouchActive(true);
+  };
+
+  const handleTouchEnd = () => {
+    // 使用延遲關閉，提供足夠時間給用戶點擊按鈕
+    setTimeout(() => {
+      setIsTouchActive(false);
+    }, 1500); // 1.5秒後隱藏按鈕
+  };
 
   useEffect(() => {
     const fetchFearAndGreedIndex = async () => {
@@ -131,11 +145,17 @@ const GaugeChart = ({ onAddToNote }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full relative group">
-      <h3 className="text-base font-semibold text-white-400 mb-0">
-        比特幣恐懼貪婪
+    <div 
+      className="flex flex-col items-center justify-center w-full relative group"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <h3 className="text-base font-semibold text-white-400">
+        比特幣恐懼貪婪指數
       </h3>
-      <div className="relative w-48 h-48">
+      
+      {/* 大幅減少容器高度，使元素更緊湊 */}
+      <div className="relative w-48 h-36 -mt-2">
         {/* 如果有錯誤則顯示錯誤訊息，否則顯示半圓圖表 */}
         {error ? (
           <div className="absolute inset-0 flex items-center justify-center text-red-500 text-center p-4">
@@ -143,25 +163,54 @@ const GaugeChart = ({ onAddToNote }) => {
           </div>
         ) : (
           <>
-            {/* 半圓圖表 */}
-            <Doughnut data={data} options={{ cutout: "70%", rotation: 270, circumference: 180 }} />
+            {/* 半圓圖表 - 使用更小的尺寸確保圖表顯示在上方 */}
+            <div className="transform scale-90 origin-top">
+              <Doughnut 
+                data={data} 
+                options={{ 
+                  cutout: "70%", 
+                  rotation: 270, 
+                  circumference: 180, 
+                  maintainAspectRatio: false,
+                  height: 150, // 預設為 150
+                  width: 300,  // 預設為 300
+                  layout: {
+                    padding: {
+                      top: 20,    // 上方邊距
+                      right: 5,  // 右側邊距
+                      bottom: 0, // 下方邊距
+                      left: 10    // 左側邊距
+                    }
+                  },
+                  plugins: {
+                    legend: {
+                      display: false  // 隱藏圖例
+                    }
+                  }
+                }} 
+              />
+            </div>
             
-            {/* 中心數值和狀態 */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ marginTop: '35px' }}>
+            {/* 中心數值和狀態 - 明確定位避免重疊 */}
+            <div className="absolute left-0 right-0 bottom-0 flex flex-col items-center">
               <p className="text-4xl font-bold">{indexValue}</p>
-              <p className="text-base font-bold" style={{ 
-                color: backgroundColors[getLabelColorIndex(label)]  // 使用與半圓相同的顏色，但根據標籤文字決定
+              {/* 增加狀態文字大小 */}
+              <p className="text-lg font-bold" style={{ 
+                color: backgroundColors[getLabelColorIndex(label)]
               }}>{label}</p>
             </div>
           </>
         )}
       </div>
       
-      {/* 新增按鈕 */}
+      {/* 新增按鈕 - 保持在右下角 */}
       {!error && (
         <button
           onClick={handleAddToNote}
-          className="absolute bottom-2 right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer hover:bg-yellow-600"
+          className={`absolute bottom-2 right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center 
+            md:opacity-0 md:group-hover:opacity-100 
+            ${isTouchActive ? 'opacity-100' : 'opacity-0'} 
+            transition-opacity duration-200 cursor-pointer hover:bg-yellow-600 z-10`}
         >
           <span className="text-xl font-bold text-white">+</span>
         </button>

@@ -9,6 +9,20 @@ const AltcoinIndex = ({ onAddToNote }) => {
   const [status, setStatus] = useState("");
   const [title, setTitle] = useState("");
   const [error, setError] = useState(null);
+  // 新增一個狀態用於追踪移動設備上的觸控激活狀態
+  const [isTouchActive, setIsTouchActive] = useState(false);
+
+  // 添加處理觸控事件的函數
+  const handleTouchStart = () => {
+    setIsTouchActive(true);
+  };
+
+  const handleTouchEnd = () => {
+    // 使用延遲關閉，提供足夠時間給用戶點擊按鈕
+    setTimeout(() => {
+      setIsTouchActive(false);
+    }, 1500); // 1.5秒後隱藏按鈕
+  };
 
   // 新增狀態轉換對照表
   const translateText = {
@@ -90,7 +104,11 @@ const AltcoinIndex = ({ onAddToNote }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full relative group mt-4">
+    <div 
+      className="flex flex-col items-center justify-center w-full relative group mt-4"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <h3 className="text-xl font-semibold text-center text-white mb-2">
         {title || "山寨幣月份指數"}
       </h3>
@@ -109,7 +127,10 @@ const AltcoinIndex = ({ onAddToNote }) => {
           </div>
           <button
             onClick={handleAddToNote}
-            className="absolute bottom-2 right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer hover:bg-yellow-600"
+            className={`absolute bottom-2 right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center 
+              md:opacity-0 md:group-hover:opacity-100 
+              ${isTouchActive ? 'opacity-100' : 'opacity-0'} 
+              transition-opacity duration-200 cursor-pointer hover:bg-yellow-600`}
           >
             <span className="text-xl font-bold text-white">+</span>
           </button>

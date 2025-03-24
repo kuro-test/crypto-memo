@@ -238,10 +238,10 @@ ${news.url}`;
     
     // 選擇區塊模態窗組件
     const SelectionModal = () => (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-gray-800 p-6 rounded-lg w-96 max-w-full">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 p-4 md:p-6 rounded-lg w-full max-w-md">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-yellow-400">選擇要添加的內容</h2>
+            <h2 className="text-lg md:text-xl font-semibold text-yellow-400">選擇要添加的內容</h2>
             <button
               onClick={() => setShowSelectionModal(false)}
               className="text-gray-400 hover:text-white cursor-pointer"
@@ -310,13 +310,13 @@ ${news.url}`;
           <div className="flex justify-end gap-3">
             <button
               onClick={() => setShowSelectionModal(false)}
-              className="px-5 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors cursor-pointer"
+              className="px-4 md:px-5 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors cursor-pointer"
             >
               取消
             </button>
             <button
               onClick={handleConfirmAddToNote}
-              className="px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
+              className="px-4 md:px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
             >
               添加至筆記
             </button>
@@ -326,19 +326,19 @@ ${news.url}`;
     );
 
     return (
-      <div className="bg-gray-800 p-6 rounded-lg">
-        {/* 修改標題區塊的排列方式 */}
+      <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+        {/* 修改標題區塊的排列方式 - 在小螢幕上使用垂直排列 */}
         <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4">
             <button
               onClick={handleBackToList}
-              className="bg-yellow-500 px-4 py-2 rounded-md hover:bg-yellow-600 w-24 cursor-pointer transition-colors"
+              className="bg-yellow-500 px-4 py-2 rounded-md hover:bg-yellow-600 w-full md:w-24 mb-4 md:mb-0 cursor-pointer transition-colors"
             >
               返回
             </button>
             <button
               onClick={handleAddToNote}
-              className="bg-yellow-500 px-4 py-2 rounded-md hover:bg-yellow-600 cursor-pointer transition-colors flex items-center"
+              className="bg-yellow-500 px-4 py-2 rounded-md hover:bg-yellow-600 cursor-pointer transition-colors flex items-center justify-center"
             >
               <span>添加至筆記</span>
             </button>
@@ -346,27 +346,27 @@ ${news.url}`;
           <h2 className="text-xl font-semibold">{news.titleZh}</h2>
         </div>
 
-        {/* 調整內容順序 */}
-        <div className="space-y-6">
-          <div className="bg-gray-700 p-4 rounded-lg">
+        {/* 調整內容區塊 - 更好的間距和捲動 */}
+        <div className="space-y-4 md:space-y-6">
+          <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
             <h3 className="text-yellow-400 mb-2">簡介</h3>
             <p className="text-gray-300">{news.contentZh}</p>
           </div>
 
-          <div className="bg-gray-700 p-4 rounded-lg">
+          <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
             <h3 className="text-yellow-400 mb-2">重點摘要</h3>
             <p className="text-gray-300 whitespace-pre-line">
               {news.summaryZh}
             </p>
           </div>
 
-          <div className="bg-gray-700 p-4 rounded-lg">
+          <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
             <h3 className="text-yellow-400 mb-2">詳細內容</h3>
             <p className="text-gray-300 whitespace-pre-line">{news.detailZh}</p>
           </div>
 
-          <div className="bg-gray-700 p-4 rounded-lg">
-            <h3 className="text-yellow-400 mb-4">原文</h3>
+          <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+            <h3 className="text-yellow-400 mb-2 md:mb-4">原文</h3>
             <p
               className="text-gray-300 whitespace-pre-line leading-relaxed"
               style={{
@@ -379,13 +379,13 @@ ${news.url}`;
             </p>
           </div>
 
-          <div className="bg-gray-700 p-4 rounded-lg">
+          <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
             <h3 className="text-yellow-400 mb-2">出處</h3>
             <a
               href={news.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300"
+              className="text-blue-400 hover:text-blue-300 break-words"
             >
               {news.url}
             </a>
@@ -500,15 +500,15 @@ ${news.url}`;
     }, [editingTitle, editingContent]);
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div  
-          className="bg-gray-800 p-6 rounded-lg w-3/4 max-w-3xl"
+          className="bg-gray-800 p-4 md:p-6 rounded-lg w-full md:w-3/4 max-w-3xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-yellow-400">新增筆記</h2>
+            <h2 className="text-lg md:text-xl font-semibold text-yellow-400">新增筆記</h2>
             <button
-              onClick={handleCloseNoteModal}  /* 改用新的關閉處理函數 */
+              onClick={handleCloseNoteModal}
               className="text-gray-400 hover:text-white cursor-pointer"
             >
               ✕
@@ -519,18 +519,18 @@ ${news.url}`;
             value={localTitle}
             onChange={(e) => setLocalTitle(e.target.value)}
             placeholder="標題"
-            className="w-full p-3 mb-4 rounded-md bg-gray-700 text-white text-base"  /* 增加內邊距 */
+            className="w-full p-3 mb-4 rounded-md bg-gray-700 text-white text-base"
           />
           <textarea
             value={localContent}
             onChange={(e) => setLocalContent(e.target.value)}
             placeholder="內容"
-            className="w-full h-72 p-3 mb-4 rounded-md bg-gray-700 text-white resize-none text-base" /* 增加高度和內邊距 */
+            className="w-full h-48 md:h-72 p-3 mb-4 rounded-md bg-gray-700 text-white resize-none text-base"
           />
           <div className="flex justify-end gap-3">
             <button
-              onClick={handleCloseNoteModal}  /* 取消按鈕也使用同一個處理函數 */
-              className="px-5 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors cursor-pointer"
+              onClick={handleCloseNoteModal}
+              className="px-4 md:px-5 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors cursor-pointer"
             >
               取消
             </button>
@@ -548,7 +548,7 @@ ${news.url}`;
                   setEditingContent("");
                 }
               }}
-              className="px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
+              className="px-4 md:px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
             >
               儲存
             </button>
@@ -565,11 +565,11 @@ ${news.url}`;
     setIsNoteModalOpen(true);
   };
 
-  // 修改登入表單部分
+  // 修改登入表單部分為響應式
   if (!isLoggedIn) {
     return (
-      <div className="bg-gray-900 text-white min-h-screen flex items-center justify-center">
-        <div className="bg-gray-800 p-6 rounded-lg">
+      <div className="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+        <div className="bg-gray-800 p-4 md:p-6 rounded-lg w-full max-w-md">
           <h2 className="text-xl font-semibold mb-4 text-yellow-400">
             Crypto Memo
           </h2>
@@ -600,37 +600,58 @@ ${news.url}`;
     );
   }
 
-  // 已登入後的主畫面
+  // 已登入後的主畫面 - 最簡單可靠的 RWD 佈局
   return (
-    <div className="bg-gray-900 text-white min-h-screen flex">
+    <div className="bg-gray-900 text-white min-h-screen flex flex-col md:flex-row">
       {/* 左側側邊欄 */}
-      <div className="sticky top-0 h-screen bg-gray-800 p-6 w-64 flex flex-col border-r border-gray-700">
-        <h1 className="text-2xl font-bold text-yellow-400 mb-6">Crypto Memo</h1>
-
-        {/* 快速筆記輸入區域 */}
-        <input
-          type="text"
-          placeholder="快速筆記"
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter" && memo.trim()) {
-              handleAddMemo();
-            }
+      <aside className="bg-gray-800 p-4 md:p-6 md:w-64 border-b md:border-r md:border-b-0 border-gray-700 md:h-screen md:sticky md:top-0 flex flex-col">
+        <h1 className="text-xl md:text-2xl font-bold text-yellow-400 mb-4">Crypto Memo</h1>
+        
+        {/* 在桌面版用垂直排列，在手機版用水平排列 */}
+        <form 
+          className="mb-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleAddMemo();
           }}
-          className="w-full p-2 mb-4 rounded-md bg-gray-700 text-white"
-        />
-
-        {/* 單一新增按鈕 */}
-        <button
-          onClick={handleAddMemo}
-          className="bg-yellow-500 px-4 py-2 rounded-md w-full mb-4 hover:bg-yellow-600 cursor-pointer transition-colors"
         >
-          新增
-        </button>
-
-        {/* 修改筆記列表項目的渲染部分 */}
-        <div className="flex-1 overflow-y-auto">
+          {/* 桌面版輸入區 - 垂直排列 */}
+          <div className="hidden md:block">
+            <input
+              type="text"
+              placeholder="快速筆記"
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              className="w-full p-2 rounded-md bg-gray-700 text-white mb-2"
+            />
+            <button
+              type="submit"
+              className="bg-yellow-500 w-full p-2 rounded-md hover:bg-yellow-600 transition-colors font-medium"
+            >
+              新增
+            </button>
+          </div>
+          
+          {/* 手機版輸入區 - 水平排列 */}
+          <div className="flex md:hidden">
+            <input
+              type="text"
+              placeholder="快速筆記"
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              className="flex-1 p-2 rounded-l-md bg-gray-700 text-white"
+            />
+            <button
+              type="submit"
+              className="bg-yellow-500 px-3 py-2 rounded-r-md hover:bg-yellow-600 transition-colors flex-shrink-0"
+            >
+              新增
+            </button>
+          </div>
+        </form>
+        
+        {/* 筆記列表 */}
+        <div className="overflow-y-auto flex-1">
           {memos.map((item, index) => (
             <div
               key={index}
@@ -674,15 +695,15 @@ ${news.url}`;
             </div>
           ))}
         </div>
-      </div>
-
-      {/* 中間主內容區（新聞） */}
-      <div className="flex-1 overflow-y-auto p-6">
+      </aside>
+      
+      {/* 中間主內容區 */}
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
         {!selectedNews ? (
           <>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-4xl font-semibold">新聞</h2>
-              <h2 className="text-base font-semibold">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4">
+              <h2 className="text-2xl md:text-4xl font-semibold mb-2 md:mb-0">新聞</h2>
+              <h2 className="text-sm md:text-base font-semibold">
                 更新時間：
                 {news.length > 0 && news[0].timestamp
                   ? formatTimestamp(news[0].timestamp)
@@ -712,11 +733,11 @@ ${news.url}`;
         ) : (
           <NewsDetail news={selectedNews} />
         )}
-      </div>
-
+      </main>
+      
       {/* 右側側邊欄 */}
-      <div className="sticky top-0 h-screen bg-gray-800 p-6 w-64 flex flex-col border-l border-gray-700">
-        <h2 className="text-xl font-semibold mb-4 text-yellow-400 text-center">
+      <aside className="bg-gray-800 p-4 md:p-6 md:w-64 border-t md:border-l md:border-t-0 border-gray-700 md:h-screen md:sticky md:top-0">
+        <h2 className="text-lg md:text-xl font-semibold mb-4 text-yellow-400 text-center">
           相關指數
         </h2>
         <div className="flex-1 overflow-y-auto flex flex-col items-center space-y-4">
@@ -726,27 +747,19 @@ ${news.url}`;
           <div className="w-full bg-gray-700 p-4 rounded-lg">
             <AltcoinIndex onAddToNote={handleGaugeAddToNote} />
           </div>
-          {/* 修改開發中提示區塊為正方形 */}
+          {/* 修改開發中提示區塊為響應式 */}
           <div className="w-full flex justify-center">
-            <div className="w-48 h-48 p-4 rounded-lg border-2 border-dashed border-white/50 flex items-center justify-center">
+            <div className="w-full md:w-48 aspect-square p-4 rounded-lg border-2 border-dashed border-white/50 flex items-center justify-center">
               <p className="text-center text-white/70 font-medium">
                 新指數功能開發中
               </p>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* 在主要內容的最後加入筆記視窗 */}
+      </aside>
+      
+      {/* 模態窗 */}
       {isNoteModalOpen && <NoteModal />}
-
-      {/* 在 App 組件的開頭添加此狀態 */}
-      {apiError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <strong className="font-bold">錯誤!</strong>
-          <span className="block sm:inline"> {apiError}</span>
-        </div>
-      )}
     </div>
   );
 }

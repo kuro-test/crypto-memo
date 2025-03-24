@@ -45,47 +45,17 @@ function App() {
   const [selectedMemo, setSelectedMemo] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingContent, setEditingContent] = useState("");
-  const [apiError, setApiError] = useState(null);
 
   useEffect(() => {
     if (isLoggedIn) {
-      // 依序嘗試不同的 API 端點
-      const tryApiEndpoints = async () => {
-        const endpoints = [
-          'http://localhost:3000/api/news',
-          'https://your-railway-app-name.railway.app/api/news'//部署後記得改
-        ];
-        
-        let succeeded = false;
-        let lastError = null;
-        
-        // 依序嘗試每個端點
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`嘗試連接到: ${endpoint}`);
-            const response = await axios.get(endpoint, { timeout: 3000 }); // 3秒超時
-            setNews(response.data);
-            console.log(`成功連接到: ${endpoint}`);
-            succeeded = true;
-            break; // 成功取得數據後跳出迴圈
-          } catch (error) {
-            console.log(`連接到 ${endpoint} 失敗:`, error.message);
-            lastError = error;
-            // 失敗後繼續嘗試下一個端點
-          }
-        }
-        
-        // 如果所有端點都失敗
-        if (!succeeded) {
-          console.error("無法連接到任何 API 端點:", lastError);
-          // 這裡可以設置一個錯誤狀態或顯示錯誤訊息給使用者
-          setApiError("無法連接到新聞數據服務。請稍後再試。");
-        } else {
-          setApiError(null); // 清除任何之前的錯誤
-        }
-      };
-      
-      tryApiEndpoints();
+      axios
+        .get("/news.json")
+        .then((response) => {
+          setNews(response.data);
+        })
+        .catch((error) => {
+          console.error("Error fetching news:", error);
+        });
     }
   }, [isLoggedIn]);
 
@@ -739,14 +709,6 @@ ${news.url}`;
 
       {/* 在主要內容的最後加入筆記視窗 */}
       {isNoteModalOpen && <NoteModal />}
-
-      {/* 在 App 組件的開頭添加此狀態 */}
-      {apiError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <strong className="font-bold">錯誤!</strong>
-          <span className="block sm:inline"> {apiError}</span>
-        </div>
-      )}
     </div>
   );
 }

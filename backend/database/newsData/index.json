@@ -2,16 +2,16 @@
   {
     "id": "fear&greed",
     "data": {
-      "timestamp": "1742543535",
-      "value": 31,
+      "timestamp": "1742777232",
+      "value": 45,
       "value_classification": "恐慌"
     }
   },
   {
     "id": "altcoin-index",
     "data": {
-      "timestamp": "1742543536",
-      "value": "47",
+      "timestamp": "1742777235",
+      "value": "41",
       "status": "It is not Altcoin Month!",
       "title": "Altcoin Month Index",
       "tooltip": "If 75% of the Top 50 coins performed better than Bitcoin over the last 30 days it is Altcoin Month"

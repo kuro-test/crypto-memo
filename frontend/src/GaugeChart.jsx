@@ -8,36 +8,62 @@ ChartJS.register(ArcElement, Tooltip);
 const GaugeChart = ({ onAddToNote }) => {
   const [indexValue, setIndexValue] = useState(50);
   const [label, setLabel] = useState("中性");
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchFearAndGreedIndex = async () => {
-      try {
-        console.log("🔄 正在讀取本地資料...");
-        
-        const response = await axios.get('/index.json');
-        // 找到對應的指數資料
-        const fearGreedData = response.data.find(item => item.id === "fear&greed");
-        
-        if (fearGreedData && fearGreedData.data) {
-          const data = fearGreedData.data;
-          console.log("📊 最新指數資料:", {
-            時間戳記: data.timestamp,
-            數值: data.value,
-            狀態: data.value_classification
-          });
-
-          setIndexValue(parseInt(data.value));
+      // 定義要嘗試的 API 端點
+      const endpoints = [
+        'http://localhost:3000/api/index',
+        'https://your-railway-app-name.railway.app/api/index',//部署後記得改
+      ];
+      
+      let succeeded = false;
+      
+      console.log("🔄 正在嘗試獲取恐懼貪婪指數...");
+      
+      // 依序嘗試每個端點
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`嘗試連接到: ${endpoint}`);
+          const response = await axios.get(endpoint, { timeout: 3000 }); // 3秒超時
           
-          // 直接使用中文狀態
-          setLabel(data.value_classification);
+          // 找到對應的指數資料
+          const fearGreedData = response.data.find(item => item.id === "fear&greed");
+          
+          if (fearGreedData && fearGreedData.data) {
+            const data = fearGreedData.data;
+            console.log("📊 最新指數資料:", {
+              時間戳記: data.timestamp,
+              數值: data.value,
+              狀態: data.value_classification
+            });
 
-          console.log("✅ 資料更新成功");
-        } else {
-          console.error("❌ 找不到恐懼貪婪指數資料");
+            setIndexValue(parseInt(data.value));
+            
+            // 直接使用中文狀態
+            setLabel(data.value_classification);
+
+            console.log("✅ 恐懼貪婪指數更新成功，使用端點:", endpoint);
+            succeeded = true;
+            break; // 成功取得數據後跳出迴圈
+          } else {
+            console.log("❓ 在回應中找不到恐懼貪婪指數資料");
+            // 繼續嘗試下一個端點
+          }
+        } catch (error) {
+          console.log(`連接到 ${endpoint} 失敗:`, error.message);
+          // 失敗後繼續嘗試下一個端點
         }
-      } catch (error) {
-        console.error("❌ 讀取失敗:", error.message);
-        console.error("錯誤詳情:", error);
+      }
+      
+      // 如果所有端點都失敗
+      if (!succeeded) {
+        const errorMsg = "無法獲取恐懼貪婪指數資料";
+        console.error("❌ " + errorMsg);
+        setError(errorMsg);
+      } else {
+        setError(null); // 清除任何之前的錯誤
       }
     };
 
@@ -110,25 +136,36 @@ const GaugeChart = ({ onAddToNote }) => {
         比特幣恐懼貪婪
       </h3>
       <div className="relative w-48 h-48">
-        {/* 半圓圖表 */}
-        <Doughnut data={data} options={{ cutout: "70%", rotation: 270, circumference: 180 }} />
-        
-        {/* 中心數值和狀態 */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ marginTop: '35px' }}>
-          <p className="text-4xl font-bold">{indexValue}</p>
-          <p className="text-base font-bold" style={{ 
-            color: backgroundColors[getLabelColorIndex(label)]  // 使用與半圓相同的顏色，但根據標籤文字決定
-          }}>{label}</p>
-        </div>
+        {/* 如果有錯誤則顯示錯誤訊息，否則顯示半圓圖表 */}
+        {error ? (
+          <div className="absolute inset-0 flex items-center justify-center text-red-500 text-center p-4">
+            <p>{error}</p>
+          </div>
+        ) : (
+          <>
+            {/* 半圓圖表 */}
+            <Doughnut data={data} options={{ cutout: "70%", rotation: 270, circumference: 180 }} />
+            
+            {/* 中心數值和狀態 */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ marginTop: '35px' }}>
+              <p className="text-4xl font-bold">{indexValue}</p>
+              <p className="text-base font-bold" style={{ 
+                color: backgroundColors[getLabelColorIndex(label)]  // 使用與半圓相同的顏色，但根據標籤文字決定
+              }}>{label}</p>
+            </div>
+          </>
+        )}
       </div>
       
       {/* 新增按鈕 */}
-      <button
-        onClick={handleAddToNote}
-        className="absolute bottom-2 right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer hover:bg-yellow-600"
-      >
-        <span className="text-xl font-bold text-white">+</span>
-      </button>
+      {!error && (
+        <button
+          onClick={handleAddToNote}
+          className="absolute bottom-2 right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer hover:bg-yellow-600"
+        >
+          <span className="text-xl font-bold text-white">+</span>
+        </button>
+      )}
     </div>
   );
 };

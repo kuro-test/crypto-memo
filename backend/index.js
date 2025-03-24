@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const { exec, spawn } = require('child_process');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -87,6 +88,109 @@ app.get('/api/news', (req, res) => {
   });
 });
 
+// 爬取新聞的 SSE API 端點
+app.get('/api/scrape/news/stream/:count?', (req, res) => {
+  // 設置 SSE 響應頭
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // 獲取參數，默認為 10
+  const count = req.params.count || 10;
+  
+  // 取得 scraperTranslate.js 絕對路徑
+  const scraperPath = path.join(__dirname, 'scraper', 'scraperTranslate.js');
+  
+  // 發送初始消息
+  res.write(`data: ${JSON.stringify({ type: 'start', message: `開始執行爬蟲程序，爬取 ${count} 篇新聞...\n` })}\n\n`);
+  
+  // 使用 spawn 代替 exec 以獲取實時輸出
+  const scraper = spawn('node', [scraperPath, count]);
+  
+  // 處理標準輸出
+  scraper.stdout.on('data', (data) => {
+    const message = data.toString();
+    console.log(message);
+    // 發送日誌到客戶端
+    res.write(`data: ${JSON.stringify({ type: 'log', message })}\n\n`);
+  });
+  
+  // 處理標準錯誤
+  scraper.stderr.on('data', (data) => {
+    const message = data.toString();
+    console.error(message);
+    // 發送錯誤日誌到客戶端
+    res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`);
+  });
+  
+  // 處理進程結束
+  scraper.on('close', (code) => {
+    const message = `爬蟲進程已結束，退出碼 ${code}`;
+    console.log(message);
+    // 發送完成消息到客戶端
+    res.write(`data: ${JSON.stringify({ type: 'end', message, code })}\n\n`);
+    res.end();
+  });
+  
+  // 處理客戶端斷開連接
+  req.on('close', () => {
+    if (!scraper.killed) {
+      scraper.kill();
+      console.log('客戶端已斷開連接，終止爬蟲進程');
+    }
+  });
+});
+
+// 爬取指數的 SSE API 端點
+app.get('/api/scrape/index/stream', (req, res) => {
+  // 設置 SSE 響應頭
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // 取得 combinedIndex.js 絕對路徑
+  const indexScraperPath = path.join(__dirname, 'scraper', 'combinedIndex.js');
+  
+  // 發送初始消息
+  res.write(`data: ${JSON.stringify({ type: 'start', message: '開始執行爬蟲程序，爬取加密貨幣指數...\n' })}\n\n`);
+  
+  // 使用 spawn 代替 exec 以獲取實時輸出
+  const indexScraper = spawn('node', [indexScraperPath]);
+  
+  // 處理標準輸出
+  indexScraper.stdout.on('data', (data) => {
+    const message = data.toString();
+    console.log(message);
+    // 發送日誌到客戶端
+    res.write(`data: ${JSON.stringify({ type: 'log', message })}\n\n`);
+  });
+  
+  // 處理標準錯誤
+  indexScraper.stderr.on('data', (data) => {
+    const message = data.toString();
+    console.error(message);
+    // 發送錯誤日誌到客戶端
+    res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`);
+  });
+  
+  // 處理進程結束
+  indexScraper.on('close', (code) => {
+    const message = `爬蟲進程已結束，退出碼 ${code}`;
+    console.log(message);
+    // 發送完成消息到客戶端
+    res.write(`data: ${JSON.stringify({ type: 'end', message, code })}\n\n`);
+    res.end();
+  });
+  
+  // 處理客戶端斷開連接
+  req.on('close', () => {
+    if (!indexScraper.killed) {
+      indexScraper.kill();
+      console.log('客戶端已斷開連接，終止爬蟲進程');
+    }
+  });
+});
+
 // 處理根路徑請求
 app.get('/', (req, res) => {
   const origin = req.headers.origin;
@@ -116,4 +220,6 @@ app.listen(PORT, () => {
   console.log(`可用端點:`);
   console.log(`- http://localhost:${PORT}/api/index`);
   console.log(`- http://localhost:${PORT}/api/news`);
+  console.log(`- http://localhost:${PORT}/api/scrape/news/stream/:count?`);
+  console.log(`- http://localhost:${PORT}/api/scrape/index/stream`);
 });

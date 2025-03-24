@@ -93,30 +93,22 @@ async function combineAndSaveIndexes() {
         ].filter(Boolean); // 移除 null 值
 
         if (combinedData.length > 0) {
-            // 定義前端和後端的文件路徑
-            const frontendFilePath = path.join(__dirname, '..', '..', 'frontend', 'public', 'index.json');
+            // 只定義後端的文件路徑
             const backendFilePath = path.join(__dirname, '..', 'database', 'newsdata', 'index.json');
             
-            // 確保後端目錄存在，但不輸出日誌
+            // 確保後端目錄存在
             const backendDirPath = path.dirname(backendFilePath);
             if (!fs.existsSync(backendDirPath)) {
                 fs.mkdirSync(backendDirPath, { recursive: true });
-            }
-            
-            // 儲存到前端路徑
-            try {
-                fs.writeFileSync(frontendFilePath, JSON.stringify(combinedData, null, 2), 'utf-8');
-                console.log("✅ 資料已儲存至前端:", frontendFilePath);
-            } catch (error) {
-                console.error(`❌ 儲存到前端路徑失敗: ${error.message}`);
+                console.log(`📁 已創建目錄 "${backendDirPath}"`);
             }
             
             // 儲存到後端路徑
             try {
                 fs.writeFileSync(backendFilePath, JSON.stringify(combinedData, null, 2), 'utf-8');
-                console.log("✅ 資料已儲存至後端:", backendFilePath);
+                console.log("✅ 資料已儲存至:", backendFilePath);
             } catch (error) {
-                console.error(`❌ 儲存到後端路徑失敗: ${error.message}`);
+                console.error(`❌ 儲存失敗: ${error.message}`);
             }
         } else {
             console.error("❌ 沒有可用的指數資料");

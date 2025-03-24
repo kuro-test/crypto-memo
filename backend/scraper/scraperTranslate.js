@@ -123,8 +123,23 @@ async function generateSummary(translatedContent) {
   }
 }
 
-// 主要執行函數
-async function scraperTranslate(count) {
+// 確保目錄存在的輔助函數
+function ensureDirectoryExists(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    try {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`📁 已創建目錄 "${dirPath}" ✅`);
+      return true;
+    } catch (error) {
+      console.log(`📁 無法創建目錄 "${dirPath}" ❌: ${error.message}`);
+      return false;
+    }
+  }
+  return true;
+}
+
+// 主要爬蟲函數 - 直接整合為單一函數，包含儲存後端部分
+async function scraperTranslate(count = 10) {
   try {
     const timestamp = Date.now();
     console.log(`🔄 開始爬取 ${count} 篇新聞...`);
@@ -141,7 +156,7 @@ async function scraperTranslate(count) {
     const newsData = [{ timestamp }];
 
     // 先建立新聞資料結構
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < count && i < news.length; i++) {
       newsData.push({
         id: i + 1,
         url: news[i].url,
@@ -186,120 +201,33 @@ async function scraperTranslate(count) {
       }
     }
 
-    // 儲存結果
-    const filePath = path.join(__dirname, '..','..', 'frontend', 'public', 'news.json');
-    try {
-      fs.writeFileSync(filePath, JSON.stringify(newsData, null, 2), 'utf-8');
-      console.log(`\n✅ 已更新 ${filePath}`);
-    } catch (error) {
-      console.error("❌ 處理過程發生錯誤:", error.message);
-    }
-  } catch (error) {
-    console.error("❌ 處理過程發生錯誤:", error.message);
-  }
-}
-
-// 測試路徑是否有效的函數
-function testFilePath(filePath) {
-  console.log('\n🔍 測試路徑是否有效...');
-  console.log(`📂 完整路徑: ${filePath}`);
-  
-  // 檢查目錄是否存在
-  const dirPath = path.dirname(filePath);
-  const dirExists = fs.existsSync(dirPath);
-  console.log(`📁 目錄 "${dirPath}" ${dirExists ? '存在 ✅' : '不存在 ❌'}`);
-  
-  // 如果目錄不存在，嘗試創建
-  if (!dirExists) {
-    try {
-      fs.mkdirSync(dirPath, { recursive: true });
-      console.log(`📁 已創建目錄 "${dirPath}" ✅`);
-    } catch (error) {
-      console.log(`📁 無法創建目錄 "${dirPath}" ❌: ${error.message}`);
-      return false;
-    }
-  }
-  
-  // 檢查是否可寫入
-  let isWritable = false;
-  try {
-    // 嘗試在目錄中創建一個臨時文件
-    const testPath = path.join(dirPath, 'test_write_permission.tmp');
-    fs.writeFileSync(testPath, 'test', { flag: 'w' });
-    fs.unlinkSync(testPath); // 立即刪除測試文件
-    isWritable = true;
-    console.log(`📝 目錄可寫入 ✅`);
-  } catch (error) {
-    console.log(`📝 目錄不可寫入 ❌: ${error.message}`);
-    return false;
-  }
-  
-  // 輸出整體結論
-  console.log(`\n✅ 路徑檢查通過，可以安全地寫入文件`);
-  return true;
-}
-
-// 確保目錄存在的輔助函數
-function ensureDirectoryExists(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    try {
-      fs.mkdirSync(dirPath, { recursive: true });
-      console.log(`📁 已創建目錄 "${dirPath}" ✅`);
-      return true;
-    } catch (error) {
-      console.log(`📁 無法創建目錄 "${dirPath}" ❌: ${error.message}`);
-      return false;
-    }
-  }
-  return true;
-}
-
-// 修改執行程式部分，在執行前先檢查兩個路徑
-const frontendFilePath = path.join(__dirname, '..','..', 'frontend', 'public', 'news.json');
-const backendFilePath = path.join(__dirname, '..', 'database', 'newsdata', 'news.json');
-
-// 檢查前端路徑是否有效
-const frontendPathValid = testFilePath(frontendFilePath);
-console.log('\n=== 前端路徑檢查完成 ===\n');
-
-// 檢查後端路徑是否有效
-// 確保 database/newsdata 目錄存在
-const backendDirPath = path.dirname(backendFilePath);
-const backendDirExists = ensureDirectoryExists(backendDirPath);
-const backendPathValid = backendDirExists && testFilePath(backendFilePath);
-console.log('\n=== 後端路徑檢查完成 ===\n');
-
-// 修改 scraperTranslate 函數的儲存結果部分
-const originalScraperTranslate = scraperTranslate;
-scraperTranslate = async function(count) {
-  try {
-    await originalScraperTranslate(count);
+    // 只儲存到後端路徑
+    const backendFilePath = path.join(__dirname, '..', 'database', 'newsdata', 'news.json');
     
-    // 從前端路徑讀取最新的數據
-    const newsData = JSON.parse(fs.readFileSync(frontendFilePath, 'utf-8'));
+    // 確保後端目錄存在
+    const backendDirPath = path.dirname(backendFilePath);
+    const dirExists = ensureDirectoryExists(backendDirPath);
     
-    // 同時儲存到後端路徑
-    try {
-      fs.writeFileSync(backendFilePath, JSON.stringify(newsData, null, 2), 'utf-8');
-      console.log(`\n✅ 同時已更新 ${backendFilePath}`);
-    } catch (error) {
-      console.error(`\n❌ 儲存到後端路徑時發生錯誤: ${error.message}`);
+    if (dirExists) {
+      try {
+        fs.writeFileSync(backendFilePath, JSON.stringify(newsData, null, 2), 'utf-8');
+        console.log(`\n✅ 資料已儲存至: ${backendFilePath}`);
+      } catch (error) {
+        console.error(`\n❌ 儲存數據失敗: ${error.message}`);
+      }
+    } else {
+      console.error('\n❌ 無法創建目錄，無法儲存數據');
     }
+    
   } catch (error) {
-    console.error(`\n❌ 執行爬蟲時發生錯誤: ${error.message}`);
-  }
-};
-
-// 只有當兩個路徑都有效時，才執行爬蟲程序
-if (frontendPathValid && backendPathValid) {
-  console.log('\n🚀 開始執行爬蟲程序...\n');
-  scraperTranslate(10);
-} else {
-  console.error('\n❌ 路徑檢查失敗，無法執行爬蟲程序');
-  if (!frontendPathValid) {
-    console.log('👉 請檢查前端目錄: frontend/public/');
-  }
-  if (!backendPathValid) {
-    console.log('👉 請檢查後端目錄: backend/database/newsdata/');
+    console.error("\n❌ 處理過程發生錯誤:", error.message);
   }
 }
+
+// 從命令行參數獲取 count
+const countArg = process.argv[2];
+const count = countArg ? parseInt(countArg) : 10;
+
+// 直接執行爬蟲程序並傳入指定的數量
+console.log(`\n🚀 開始執行爬蟲程序，爬取 ${count} 篇新聞...\n`);
+scraperTranslate(count);

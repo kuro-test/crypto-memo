@@ -10,6 +10,7 @@ import {
 import GaugeChart from "./GaugeChart";
 import AltcoinIndex from "./AltcoinIndex";
 import { conditionalLog, conditionalError } from "./utils/logger";
+import { log, LOG_TYPES, getApiEndpoint, switchToProd, API_CONFIG } from "./utils/logger";
 
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
@@ -109,57 +110,44 @@ function App() {
           
           for (const baseUrl of baseUrls) {
             try {
-              console.log(`重新整理後嘗試獲取用戶資料: ${baseUrl}/api/users`);
-              
               const response = await axios.get(`${baseUrl}/api/users`, { 
                 timeout: 5000 
               });
               
               if (response.data && Array.isArray(response.data)) {
-                // 找到當前用戶
                 const currentUser = response.data.find(user => user.id === userId);
                 
                 if (currentUser && currentUser.note) {
-                  console.log(`找到用戶 ${userId} 的筆記資料，共 ${currentUser.note.length} 條`);
-                  
-                  // 合併本地筆記和伺服器筆記，以最新的時間戳為準
                   const localMemos = JSON.parse(localStorage.getItem('memos') || '[]');
-                  
-                  // 建立一個時間戳到筆記的映射
                   const memoMap = {};
                   
-                  // 添加本地筆記
                   localMemos.forEach(memo => {
                     if (!memoMap[memo.timestamp] || memo.timestamp > memoMap[memo.timestamp].timestamp) {
                       memoMap[memo.timestamp] = memo;
                     }
                   });
                   
-                  // 添加伺服器筆記
                   currentUser.note.forEach(memo => {
                     if (!memoMap[memo.timestamp] || memo.timestamp > memoMap[memo.timestamp].timestamp) {
                       memoMap[memo.timestamp] = memo;
                     }
                   });
                   
-                  // 轉換回數組並按時間戳排序（降序）
                   const mergedMemos = Object.values(memoMap).sort((a, b) => b.timestamp - a.timestamp);
                   
-                  // 更新本地筆記
                   setMemos(mergedMemos);
                   localStorage.setItem('memos', JSON.stringify(mergedMemos));
                   
-                  // 同步到伺服器
                   syncNotesToServer(true);
                   break;
                 }
               }
             } catch (error) {
-              console.error(`無法從 ${baseUrl} 獲取用戶資料:`, error.message);
+              continue;
             }
           }
         } catch (error) {
-          console.error("重新載入用戶資料失敗:", error);
+          console.error("❌ 無法獲取用戶資料");
         }
       };
       
@@ -171,93 +159,51 @@ function App() {
     if (isLoggedIn) {
       // 依序嘗試不同的 API 端點
       const tryApiEndpoints = async () => {
-        const endpoints = [
-          'http://localhost:3000/api/news',
-          'https://crypto-memo-production.up.railway.app/api/news'//部署後記得改
-        ];
-        
-        let succeeded = false;
-        let lastError = null;
-        let successEndpoint = null;
-        
-        // 使用 console.log 確保一定會輸出
-        console.log("🔄 正在嘗試獲取新聞數據...");
-        
-        // 依序嘗試每個端點
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`嘗試連接到: ${endpoint}`);
-            
-            const response = await axios.get(endpoint, { timeout: 5000 }); // 增加超時時間
-            setNews(response.data);
-            
-            // 直接使用 console.log 確保一定輸出
-            console.log(`✅ 成功連接到: ${endpoint}`);
-            successEndpoint = endpoint;
-            
-            succeeded = true;
-            break; // 成功取得數據後跳出迴圈
-          } catch (error) {
-            console.log(`❌ 連接到 ${endpoint} 失敗:`, error.message);
-            lastError = error;
-            // 失敗後繼續嘗試下一個端點
+        try {
+          const response = await axios.get(`${getApiEndpoint()}/api/news`, { timeout: 5000 });
+          setNews(response.data);
+          log(LOG_TYPES.NEWS_SUCCESS);
+          return;
+        } catch (error) {
+          if (!API_CONFIG.isUsingProd) {
+            switchToProd();
+            return tryApiEndpoints(); // 重試一次
           }
-        }
-        
-        // 無論如何都記錄最終結果
-        if (succeeded) {
-          console.log(`📊 新聞數據最終使用的 API 端點: ${successEndpoint}`);
-          setApiError(null);
-        } else {
-          console.error("❌ 無法連接到任何新聞 API 端點:", lastError);
+          log(LOG_TYPES.NEWS_ERROR);
           setApiError("無法連接到新聞數據服務。請稍後再試。");
         }
       };
       
       // 同樣的邏輯也適用於獲取指數數據
       const tryIndexEndpoints = async () => {
-        const endpoints = [
-          'http://localhost:3000/api/index',
-          'https://crypto-memo-production.up.railway.app/api/index'//部署後記得改
+        const baseUrls = [
+          'http://localhost:3000',
+          'https://crypto-memo-production.up.railway.app'
         ];
         
-        let succeeded = false;
-        let successEndpoint = null;
-        
-        console.log("🔄 正在嘗試獲取指數數據...");
-        
-        for (const endpoint of endpoints) {
+        for (const baseUrl of baseUrls) {
           try {
-            console.log(`嘗試連接到指數 API: ${endpoint}`);
-            
-            // 實際獲取數據並存儲結果，而不僅僅是測試連接
-            const response = await axios.get(endpoint, { timeout: 5000 });
-            
-            console.log(`✅ 成功連接到指數 API: ${endpoint}`);
-            successEndpoint = endpoint;
-            
-            // 可能需要將數據存儲到組件中的狀態
-            // 例如: setIndexData(response.data);
-            
-            succeeded = true;
-            break;
+            await axios.get(`${baseUrl}/api/index`, { timeout: 5000 });
+            return;
           } catch (error) {
-            console.log(`❌ 連接到指數 API ${endpoint} 失敗:`, error.message);
-            // 失敗後繼續嘗試下一個端點
+            continue;
           }
-        }
-        
-        // 無論如何都記錄最終結果
-        if (succeeded) {
-          console.log(`📊 指數數據最終使用的 API 端點: ${successEndpoint}`);
-        } else {
-          console.error("❌ 無法連接到任何指數 API 端點");
         }
       };
       
       // 確保兩個函數都獨立運行，任一函數的失敗不會阻止另一個函數的執行
-      tryApiEndpoints().catch(e => console.error("新聞 API 調用失敗:", e));
-      tryIndexEndpoints().catch(e => console.error("指數 API 調用失敗:", e));
+      tryApiEndpoints().catch(e => {
+        // 只在開發環境輸出錯誤日誌
+        if (process.env.NODE_ENV === 'development') {
+          console.error("新聞 API 調用失敗");
+        }
+      });
+      tryIndexEndpoints().catch(e => {
+        // 只在開發環境輸出錯誤日誌
+        if (process.env.NODE_ENV === 'development') {
+          console.error("指數 API 調用失敗");
+        }
+      });
     }
   }, [isLoggedIn]);
 
@@ -269,77 +215,42 @@ function App() {
     }
     
     try {
-      // 確定正確的 API URL
-      const baseUrls = [
-        'http://localhost:3000',
-        'https://crypto-memo-production.up.railway.app'
-      ];
+      const response = await axios.post(`${getApiEndpoint()}/api/login`, {
+        id: account,
+        password: password
+      }, { 
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 5000 
+      });
       
-      let succeeded = false;
-      let lastError = null;
+      const { success, id, control, note } = response.data;
       
-      console.log("嘗試登入...");
-      
-      // 依序嘗試每個端點
-      for (const baseUrl of baseUrls) {
-        try {
-          console.log(`嘗試連接到登入 API: ${baseUrl}/api/login`);
-          
-          const response = await axios.post(`${baseUrl}/api/login`, {
-            id: account,
-            password: password
-          }, { 
-            headers: { 'Content-Type': 'application/json' },
-            timeout: 5000 
-          });
-          
-          const { success, id, control, note } = response.data;
-          
-          if (success) {
-            setIsLoggedIn(true);
-            setUserId(id);
-            setIsAdmin(control === "true");
-            
-            // 設置用戶的筆記
-            if (note && Array.isArray(note)) {
-              setMemos(note);
-            }
-            
-            // 更新 localStorage
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('userId', id);
-            localStorage.setItem('isAdmin', control === "true");
-            if (note && Array.isArray(note)) {
-              localStorage.setItem('memos', JSON.stringify(note));
-            }
-            
-            console.log(`用戶 ${id} 登入成功，管理員權限: ${control}`);
-            succeeded = true;
-            break;
-          }
-        } catch (error) {
-          console.log(`連接到 ${baseUrl}/api/login 失敗:`, error.message);
-          lastError = error;
-          // 失敗後繼續嘗試下一個端點
+      if (success) {
+        setIsLoggedIn(true);
+        setUserId(id);
+        setIsAdmin(control === "true");
+        
+        if (note && Array.isArray(note)) {
+          setMemos(note);
         }
-      }
-      
-      if (!succeeded) {
-        throw lastError;
+        
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userId', id);
+        localStorage.setItem('isAdmin', control === "true");
+        if (note && Array.isArray(note)) {
+          localStorage.setItem('memos', JSON.stringify(note));
+        }
+        
+        log(LOG_TYPES.API_SUCCESS, getApiEndpoint());
+        log(LOG_TYPES.LOGIN_SUCCESS, `${id}, 管理員權限: ${control}`);
+        return;
       }
     } catch (error) {
-      console.error("登入失敗:", error);
-      
-      if (error.response) {
-        // 伺服器返回的錯誤訊息
-        setLoginError(error.response.data.error || "帳號或密碼錯誤");
-      } else if (error.request) {
-        // 請求發送但沒收到回應
-        setLoginError("無法連接到伺服器，請稍後再試");
-      } else {
-        // 請求設置發生錯誤
-        setLoginError("登入過程發生錯誤");
+      if (!API_CONFIG.isUsingProd) {
+        switchToProd();
+        return handleLogin(); // 重試一次
       }
+      setLoginError("無法連接到伺服器，請稍後再試");
     }
   };
 
@@ -881,65 +792,36 @@ ${news.url}`;
   // 1. 改進筆記同步函數，增加錯誤重試和日誌
   const syncNotesToServer = async (forcedSync = false) => {
     if (!isLoggedIn || !userId) return false;
-    
-    // 如果沒有筆記且不是強制同步，則不進行操作
     if (memos.length === 0 && !forcedSync) return false;
     
     setIsSyncing(true);
-    let retryCount = 0;
-    const maxRetries = 3;
+    const baseUrls = [
+      'http://localhost:3000',
+      'https://crypto-memo-production.up.railway.app'
+    ];
     
-    while (retryCount < maxRetries) {
+    for (const baseUrl of baseUrls) {
       try {
-        const baseUrls = [
-          'http://localhost:3000',
-          'https://crypto-memo-production.up.railway.app'
-        ];
+        const response = await axios.post(`${baseUrl}/api/notes/save`, {
+          userId: userId,
+          notes: memos
+        }, { 
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 5000 
+        });
         
-        let succeeded = false;
-        
-        // 嘗試不同的端點
-        for (const baseUrl of baseUrls) {
-          try {
-            console.log(`嘗試同步筆記到 ${baseUrl}/api/notes/save...`);
-            
-            const response = await axios.post(`${baseUrl}/api/notes/save`, {
-              userId: userId,
-              notes: memos
-            }, { 
-              headers: { 'Content-Type': 'application/json' },
-              timeout: 5000 
-            });
-            
-            if (response.data.success) {
-              console.log(`✅ 筆記同步成功 (${baseUrl})`);
-              succeeded = true;
-              setIsSyncing(false);
-              return true;
-            }
-          } catch (error) {
-            console.error(`❌ 連接到 ${baseUrl}/api/notes/save 失敗:`, error.message);
-          }
-        }
-        
-        if (succeeded) break;
-        
-        // 如果所有端點都失敗，增加重試計數
-        retryCount++;
-        console.log(`筆記同步失敗，${maxRetries - retryCount}次重試機會剩餘`);
-        
-        // 在重試前等待一段時間
-        if (retryCount < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        if (response.data.success) {
+          log(LOG_TYPES.NOTES_SYNC_SUCCESS);
+          setIsSyncing(false);
+          return true;
         }
       } catch (error) {
-        console.error("筆記同步過程中發生未預期錯誤:", error);
-        retryCount++;
+        continue;
       }
     }
     
+    log(LOG_TYPES.NOTES_SYNC_ERROR);
     setIsSyncing(false);
-    console.error("❌ 筆記同步失敗，已達到最大重試次數");
     return false;
   };
 
@@ -1078,11 +960,6 @@ ${news.url}`;
             </button>
           </div>
         </form>
-        
-        {/* 顯示正在同步提示 */}
-        {isSyncing && (
-          <div className="mb-2 text-xs text-gray-400">正在同步筆記...</div>
-        )}
         
         {/* 筆記列表 */}
         <div className="overflow-y-auto flex-1">

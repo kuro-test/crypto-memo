@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ArcElement, Chart as ChartJS, Tooltip } from "chart.js";
 import axios from "axios";
 import { conditionalLog, conditionalError } from "./utils/logger";
+import { log, LOG_TYPES } from "./utils/logger";
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -56,66 +57,35 @@ const AltcoinIndex = ({ onAddToNote }) => {
 
   useEffect(() => {
     const fetchAltcoinIndex = async () => {
-      // 定義要嘗試的 API 端點
-      const endpoints = [
-        'http://localhost:3000/api/index',
-        'https://crypto-memo-production.up.railway.app/api/index',
+      const baseUrls = [
+        'http://localhost:3000',
+        'https://crypto-memo-production.up.railway.app'
       ];
       
-      let succeeded = false;
-      
-      // 使用 console.log 確保一定會輸出
-      console.log("🔄 正在嘗試獲取山寨幣月份指數...");
-      
-      // 依序嘗試每個端點
-      for (const endpoint of endpoints) {
+      for (const baseUrl of baseUrls) {
         try {
-          // 每次嘗試都明確記錄
-          console.log(`嘗試連接到: ${endpoint}`);
-          
-          const response = await axios.get(endpoint, { timeout: 5000 }); // 增加超時時間
-          
-          // 找到對應的指數資料
+          const response = await axios.get(`${baseUrl}/api/index`, { timeout: 5000 });
           const altcoinData = response.data.find(item => item.id === "altcoin-index");
           
           if (altcoinData && altcoinData.data) {
             const data = altcoinData.data;
-            
-            // 明確標記成功連接的端點
-            console.log(`✅ 成功連接到: ${endpoint}`);
-            console.log("📊 最新山寨幣指數:", {
-              時間戳記: data.timestamp,
-              數值: data.value,
-              狀態: data.status
-            });
-
             setIndexValue(parseInt(data.value));
-            // 使用對照表轉換狀態文字
             setStatus(translateText[data.status] || data.status);
             setTitle(translateText[data.title] || data.title);
-
-            succeeded = true;
-            break; // 成功取得數據後跳出迴圈
-          } else {
-            console.log(`❓ 在 ${endpoint} 回應中找不到山寨幣指數資料`);
+            log(LOG_TYPES.ALTCOIN_SUCCESS);
+            return;
           }
         } catch (error) {
-          console.log(`❌ 連接到 ${endpoint} 失敗: ${error.message}`);
+          continue;
         }
       }
       
-      // 如果所有端點都失敗
-      if (!succeeded) {
-        const errorMsg = "無法獲取山寨幣月份指數資料";
-        console.error("❌ " + errorMsg);
-        setError(errorMsg);
-      } else {
-        setError(null); // 清除任何之前的錯誤
-      }
+      log(LOG_TYPES.ALTCOIN_ERROR);
+      setError("無法獲取山寨幣月份指數資料");
     };
 
     fetchAltcoinIndex();
-  }, []);
+  }, []); // 移除 hasLoggedSuccess 依賴
 
   const handleAddToNote = () => {
     const currentStatus = `山寨幣月份指數

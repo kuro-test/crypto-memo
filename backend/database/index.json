@@ -2,7 +2,7 @@
   {
     "id": "fear&greed",
     "data": {
-      "timestamp": "1742882043",
+      "timestamp": "1742885465",
       "value": 46,
       "value_classification": "恐慌"
     }
@@ -10,7 +10,7 @@
   {
     "id": "altcoin-index",
     "data": {
-      "timestamp": "1742882044",
+      "timestamp": "1742885466",
       "value": "49",
       "status": "It is not Altcoin Month!",
       "title": "Altcoin Month Index",

@@ -9,6 +9,7 @@ import {
 } from "@dnd-kit/core";
 import GaugeChart from "./GaugeChart";
 import AltcoinIndex from "./AltcoinIndex";
+import { conditionalLog, conditionalError } from "./utils/logger";
 
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
@@ -46,6 +47,8 @@ function App() {
   const [editingTitle, setEditingTitle] = useState("");
   const [editingContent, setEditingContent] = useState("");
   const [apiError, setApiError] = useState(null);
+  const [hasLoggedSuccess, setHasLoggedSuccess] = useState(false);
+  const [showDevelopingModal, setShowDevelopingModal] = useState(false);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -59,17 +62,32 @@ function App() {
         let succeeded = false;
         let lastError = null;
         
+        // 只在開發環境輸出
+        if (process.env.NODE_ENV === 'development') {
+          conditionalLog("🔄 正在嘗試獲取新聞數據...");
+        }
+        
         // 依序嘗試每個端點
         for (const endpoint of endpoints) {
           try {
-            console.log(`嘗試連接到: ${endpoint}`);
+            // 只在開發環境且是首次嘗試時輸出
+            if (process.env.NODE_ENV === 'development' && endpoint === endpoints[0]) {
+              conditionalLog(`嘗試連接到: ${endpoint}`);
+            }
+            
             const response = await axios.get(endpoint, { timeout: 3000 }); // 3秒超時
             setNews(response.data);
-            console.log(`成功連接到: ${endpoint}`);
+            
+            // 只在開發環境且未輸出過成功日誌時輸出
+            if (process.env.NODE_ENV === 'development' && !hasLoggedSuccess) {
+              conditionalLog("成功連接到:", endpoint);
+              setHasLoggedSuccess(true);
+            }
+            
             succeeded = true;
             break; // 成功取得數據後跳出迴圈
           } catch (error) {
-            console.log(`連接到 ${endpoint} 失敗:`, error.message);
+            conditionalLog(`連接到 ${endpoint} 失敗:`, error.message);
             lastError = error;
             // 失敗後繼續嘗試下一個端點
           }
@@ -77,7 +95,7 @@ function App() {
         
         // 如果所有端點都失敗
         if (!succeeded) {
-          console.error("無法連接到任何 API 端點:", lastError);
+          conditionalError("無法連接到任何 API 端點:", lastError);
           // 這裡可以設置一個錯誤狀態或顯示錯誤訊息給使用者
           setApiError("無法連接到新聞數據服務。請稍後再試。");
         } else {
@@ -565,6 +583,62 @@ ${news.url}`;
     setIsNoteModalOpen(true);
   };
 
+  // 添加處理"更多新聞"按鈕點擊的函數
+  const handleMoreNewsClick = () => {
+    setShowDevelopingModal(true);
+  };
+  
+  // 添加開發中提示模態窗組件
+  const DevelopingModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 p-4 md:p-6 rounded-lg w-full max-w-md">
+        <div className="flex flex-col items-center mb-4">
+          <h2 className="text-lg md:text-xl font-semibold text-yellow-400 mb-4">功能開發中</h2>
+          <p className="text-white text-center mb-6">此功能目前正在開發中，敬請期待！</p>
+          <button
+            onClick={() => setShowDevelopingModal(false)}
+            className="px-6 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
+          >
+            確認
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // 添加新數據按鈕點擊處理函數
+  const handleAddNewDataClick = () => {
+    setShowDevelopingModal(true);
+  };
+  
+  // 新增「添加新數據」組件
+  const AddNewDataButton = () => {
+    // 添加一個空的外部點擊處理函數，防止點擊圖標以外區域觸發事件
+    const handleContainerClick = (e) => {
+      // 防止點擊事件冒泡
+      e.stopPropagation();
+    };
+
+    return (
+      <div 
+        className="w-full bg-gray-700 p-4 rounded-lg"
+        onClick={handleContainerClick}
+        style={{ aspectRatio: "1/1" }} // 確保組件為正方形
+      >
+        <div className="flex flex-col items-center justify-center h-full">
+          {/* 只對圓形區域添加點擊事件 */}
+          <div 
+            className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center mb-2 cursor-pointer hover:bg-yellow-600 transition-colors"
+            onClick={handleAddNewDataClick}
+          >
+            <span className="text-xl font-bold text-white">+</span>
+          </div>
+          <p className="text-white font-medium">添加新數據</p>
+        </div>
+      </div>
+    );
+  };
+
   // 修改登入表單部分為響應式
   if (!isLoggedIn) {
     return (
@@ -713,21 +787,33 @@ ${news.url}`;
             {news.length === 0 ? (
               <p className="text-gray-400">加載中...</p>
             ) : (
-              news
-                .filter((item) => item.id)
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    className="bg-gray-800 p-4 rounded-lg mb-4 cursor-pointer hover:bg-gray-700 transition-colors"
-                    onClick={() => handleNewsClick(item)}
+              <>
+                {news
+                  .filter((item) => item.id)
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-gray-800 p-4 rounded-lg mb-4 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleNewsClick(item)}
+                    >
+                      <span className="text-sm text-gray-400">
+                        {item.timeago}
+                      </span>
+                      <h3 className="text-lg font-bold mt-1">{item.titleZh}</h3>
+                      <p className="text-gray-300 mt-2">{item.contentZh}</p>
+                    </div>
+                  ))}
+                
+                {/* 添加"更多新聞"按鈕 */}
+                <div className="flex justify-center mt-6 mb-8">
+                  <button
+                    onClick={handleMoreNewsClick}
+                    className="bg-yellow-500 px-6 py-3 rounded-md hover:bg-yellow-600 transition-colors cursor-pointer text-lg font-medium"
                   >
-                    <span className="text-sm text-gray-400">
-                      {item.timeago}
-                    </span>
-                    <h3 className="text-lg font-bold mt-1">{item.titleZh}</h3>
-                    <p className="text-gray-300 mt-2">{item.contentZh}</p>
-                  </div>
-                ))
+                    更多新聞
+                  </button>
+                </div>
+              </>
             )}
           </>
         ) : (
@@ -735,31 +821,28 @@ ${news.url}`;
         )}
       </main>
       
-      {/* 右側側邊欄 */}
+      {/* 右側側邊欄 - 修改溢出處理 */}
       <aside className="bg-gray-800 p-4 md:p-6 md:w-64 border-t md:border-l md:border-t-0 border-gray-700 md:h-screen md:sticky md:top-0">
         <h2 className="text-lg md:text-xl font-semibold mb-4 text-yellow-400 text-center">
-          相關指數
+          相關數據
         </h2>
-        <div className="flex-1 overflow-y-auto flex flex-col items-center space-y-4">
+        {/* 修改溢出設置，只允許垂直滾動，禁止水平滾動 */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center space-y-4">
           <div className="w-full bg-gray-700 p-4 rounded-lg">
             <GaugeChart onAddToNote={handleGaugeAddToNote} />
           </div>
           <div className="w-full bg-gray-700 p-4 rounded-lg">
             <AltcoinIndex onAddToNote={handleGaugeAddToNote} />
           </div>
-          {/* 修改開發中提示區塊為響應式 */}
-          <div className="w-full flex justify-center">
-            <div className="w-full md:w-48 aspect-square p-4 rounded-lg border-2 border-dashed border-white/50 flex items-center justify-center">
-              <p className="text-center text-white/70 font-medium">
-                新指數功能開發中
-              </p>
-            </div>
-          </div>
+          
+          {/* 添加新數據按鈕 */}
+          <AddNewDataButton />
         </div>
       </aside>
       
       {/* 模態窗 */}
       {isNoteModalOpen && <NoteModal />}
+      {showDevelopingModal && <DevelopingModal />}
     </div>
   );
 }

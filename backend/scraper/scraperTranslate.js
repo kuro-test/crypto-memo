@@ -196,8 +196,8 @@ async function scraperTranslate(count = 10) {
       console.log(`✅ 第 ${news.id} 篇新聞翻譯完成！`);
       
       if (i < newsData.length - 1) {
-        console.log("\n⏳ 等待 10 秒後開始下一篇...");
-        await delay(10000);
+        console.log("\n⏳ 等待 20 秒後開始下一篇...");
+        await delay(20000);
       }
     }
 

@@ -11,6 +11,8 @@ const GaugeChart = ({ onAddToNote }) => {
   const [error, setError] = useState(null);
   // 新增一個狀態用於追踪移動設備上的觸控激活狀態
   const [isTouchActive, setIsTouchActive] = useState(false);
+  // 添加這個變數來確保只輸出一次成功日誌
+  const [hasLoggedSuccess, setHasLoggedSuccess] = useState(false);
 
   // 添加處理觸控事件的函數
   const handleTouchStart = () => {
@@ -29,51 +31,67 @@ const GaugeChart = ({ onAddToNote }) => {
       // 定義要嘗試的 API 端點
       const endpoints = [
         'http://localhost:3000/api/index',
-        'https://crypto-memo-production.up.railway.app/api/index',//部署後記得改
+        'https://crypto-memo-production.up.railway.app/api/index',
       ];
       
       let succeeded = false;
       
-      console.log("🔄 正在嘗試獲取恐懼貪婪指數...");
+      // 只在開發環境輸出
+      if (process.env.NODE_ENV === 'development') {
+        console.log("🔄 正在嘗試獲取恐懼貪婪指數...");
+      }
       
       // 依序嘗試每個端點
       for (const endpoint of endpoints) {
         try {
-          console.log(`嘗試連接到: ${endpoint}`);
-          const response = await axios.get(endpoint, { timeout: 3000 }); // 3秒超時
+          // 只在開發環境且是第一次嘗試時輸出
+          if (process.env.NODE_ENV === 'development' && endpoint === endpoints[0]) {
+            console.log(`嘗試連接到: ${endpoint}`);
+          }
+          
+          const response = await axios.get(endpoint, { timeout: 3000 });
           
           // 找到對應的指數資料
           const fearGreedData = response.data.find(item => item.id === "fear&greed");
           
           if (fearGreedData && fearGreedData.data) {
             const data = fearGreedData.data;
-            console.log("📊 最新指數資料:", {
-              時間戳記: data.timestamp,
-              數值: data.value,
-              狀態: data.value_classification
-            });
+
+            // 只在開發環境且未輸出過成功日誌時輸出
+            if (process.env.NODE_ENV === 'development' && !hasLoggedSuccess) {
+              console.log("📊 最新指數資料:", {
+                時間戳記: data.timestamp,
+                數值: data.value,
+                狀態: data.value_classification
+              });
+              
+              console.log("✅ 恐懼貪婪指數更新成功，使用端點:", endpoint);
+              setHasLoggedSuccess(true);
+            }
 
             setIndexValue(parseInt(data.value));
-            
-            // 直接使用中文狀態
             setLabel(data.value_classification);
-
-            console.log("✅ 恐懼貪婪指數更新成功，使用端點:", endpoint);
+            
             succeeded = true;
             break; // 成功取得數據後跳出迴圈
           } else {
-            console.log("❓ 在回應中找不到恐懼貪婪指數資料");
-            // 繼續嘗試下一個端點
+            // 只在開發環境輸出
+            if (process.env.NODE_ENV === 'development') {
+              console.log("❓ 在回應中找不到恐懼貪婪指數資料");
+            }
           }
         } catch (error) {
-          console.log(`連接到 ${endpoint} 失敗:`, error.message);
-          // 失敗後繼續嘗試下一個端點
+          // 只在開發環境輸出
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`連接到 ${endpoint} 失敗:`, error.message);
+          }
         }
       }
       
       // 如果所有端點都失敗
       if (!succeeded) {
         const errorMsg = "無法獲取恐懼貪婪指數資料";
+        // 錯誤始終輸出，因為這是用戶需要知道的
         console.error("❌ " + errorMsg);
         setError(errorMsg);
       } else {

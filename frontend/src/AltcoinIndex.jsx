@@ -14,6 +14,8 @@ const AltcoinIndex = ({ onAddToNote }) => {
   const [isTouchActive, setIsTouchActive] = useState(false);
   // 添加狀態變數來追蹤是否已輸出成功日誌
   const [hasLoggedSuccess, setHasLoggedSuccess] = useState(false);
+  // 添加狀態變數來追蹤 tooltip 是否顯示
+  const [showTooltip, setShowTooltip] = useState(false);
 
   // 添加處理觸控事件的函數
   const handleTouchStart = () => {
@@ -25,6 +27,20 @@ const AltcoinIndex = ({ onAddToNote }) => {
     setTimeout(() => {
       setIsTouchActive(false);
     }, 1500); // 1.5秒後隱藏按鈕
+  };
+
+  // 添加處理圖標點擊事件
+  const handleInfoClick = () => {
+    // 在移動設備上切換 tooltip 顯示狀態
+    if (window.innerWidth < 768) {
+      setShowTooltip(!showTooltip);
+      // 如果顯示了 tooltip，2秒後自動隱藏
+      if (!showTooltip) {
+        setTimeout(() => {
+          setShowTooltip(false);
+        }, 3000);
+      }
+    }
   };
 
   // 新增狀態轉換對照表
@@ -43,32 +59,34 @@ const AltcoinIndex = ({ onAddToNote }) => {
       // 定義要嘗試的 API 端點
       const endpoints = [
         'http://localhost:3000/api/index',
-        'https://crypto-memo-production.up.railway.app/api/index', //部署後記得改
+        'https://crypto-memo-production.up.railway.app/api/index',
       ];
       
       let succeeded = false;
       
-      conditionalLog("🔄 正在嘗試獲取山寨幣月份指數...");
+      // 使用 console.log 確保一定會輸出
+      console.log("🔄 正在嘗試獲取山寨幣月份指數...");
       
       // 依序嘗試每個端點
       for (const endpoint of endpoints) {
         try {
-          // 只在開發環境且是首次嘗試時輸出
-          if (process.env.NODE_ENV === 'development' && endpoint === endpoints[0]) {
-            conditionalLog(`嘗試連接到: ${endpoint}`);
-          }
+          // 每次嘗試都明確記錄
+          console.log(`嘗試連接到: ${endpoint}`);
           
-          const response = await axios.get(endpoint, { timeout: 3000 }); // 3秒超時
+          const response = await axios.get(endpoint, { timeout: 5000 }); // 增加超時時間
           
           // 找到對應的指數資料
           const altcoinData = response.data.find(item => item.id === "altcoin-index");
           
           if (altcoinData && altcoinData.data) {
             const data = altcoinData.data;
-            conditionalLog("📊 最新山寨幣指數:", {
+            
+            // 明確標記成功連接的端點
+            console.log(`✅ 成功連接到: ${endpoint}`);
+            console.log("📊 最新山寨幣指數:", {
               時間戳記: data.timestamp,
               數值: data.value,
-              狀態: data.value_classification
+              狀態: data.status
             });
 
             setIndexValue(parseInt(data.value));
@@ -76,28 +94,20 @@ const AltcoinIndex = ({ onAddToNote }) => {
             setStatus(translateText[data.status] || data.status);
             setTitle(translateText[data.title] || data.title);
 
-            // 只在開發環境且未輸出過成功日誌時輸出
-            if (process.env.NODE_ENV === 'development' && !hasLoggedSuccess) {
-              conditionalLog("✅ 山寨幣指數更新成功，使用端點:", endpoint);
-              setHasLoggedSuccess(true);
-            }
-
             succeeded = true;
             break; // 成功取得數據後跳出迴圈
           } else {
-            conditionalLog("❓ 在回應中找不到山寨幣指數資料");
-            // 繼續嘗試下一個端點
+            console.log(`❓ 在 ${endpoint} 回應中找不到山寨幣指數資料`);
           }
         } catch (error) {
-          conditionalError(`連接到 ${endpoint} 失敗: ${error.message}`);
-          // 失敗後繼續嘗試下一個端點
+          console.log(`❌ 連接到 ${endpoint} 失敗: ${error.message}`);
         }
       }
       
       // 如果所有端點都失敗
       if (!succeeded) {
         const errorMsg = "無法獲取山寨幣月份指數資料";
-        conditionalError("❌ " + errorMsg);
+        console.error("❌ " + errorMsg);
         setError(errorMsg);
       } else {
         setError(null); // 清除任何之前的錯誤
@@ -120,7 +130,7 @@ const AltcoinIndex = ({ onAddToNote }) => {
 
   return (
     <div 
-      className="flex flex-col items-center justify-center w-full relative group mt-4"
+      className="flex flex-col items-center justify-center w-full relative mt-4"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -128,15 +138,21 @@ const AltcoinIndex = ({ onAddToNote }) => {
         <h3 className="text-xl font-semibold text-center text-white">
           {title || "山寨幣月份指數"}
         </h3>
-        {/* 修改資訊圖示和 tooltip */}
+        
+        {/* 滑鼠懸停或觸控後顯示 tooltip */}
         <div className="group relative ml-2 inline-block">
-          <span className="text-yellow-500 cursor-help">
+          <span 
+            className="text-yellow-500 cursor-help"
+            onClick={handleInfoClick}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
               <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
             </svg>
           </span>
-          {/* 縮小框框並調整文字換行 */}
-          <div className="opacity-0 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 absolute z-50 group-hover:opacity-100 transition-opacity duration-300 w-40 right-auto top-0 -left-32 pointer-events-none shadow-lg border border-gray-700 whitespace-normal">
+            
+          {/* 提示框 - 桌面上懸停時顯示，移動裝置上點擊後顯示 */}
+          <div className={`bg-gray-800 text-white text-xs rounded-lg py-2 px-3 absolute z-50 transition-opacity duration-300 w-40 right-auto top-0 -left-32 pointer-events-none shadow-lg border border-gray-700 whitespace-normal
+            ${(showTooltip || false) ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
             {tooltipText}
           </div>
         </div>
@@ -154,12 +170,12 @@ const AltcoinIndex = ({ onAddToNote }) => {
           <div className="text-6xl font-bold text-blue-500">
             {indexValue}
           </div>
+          {/* 修改 + 按鈕，在移動設備上僅在觸摸後顯示 */}
           <button
             onClick={handleAddToNote}
             className={`absolute bottom-2 right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center 
-              md:opacity-0 md:group-hover:opacity-100 
-              ${isTouchActive ? 'opacity-100' : 'opacity-0'} 
-              transition-opacity duration-200 cursor-pointer hover:bg-yellow-600`}
+              transition-opacity duration-200 cursor-pointer hover:bg-yellow-600
+              ${isTouchActive ? 'opacity-100' : 'opacity-0 md:hover:opacity-100'}`}
           >
             <span className="text-xl font-bold text-white">+</span>
           </button>

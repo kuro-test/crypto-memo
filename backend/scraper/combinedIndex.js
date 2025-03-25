@@ -93,8 +93,8 @@ async function combineAndSaveIndexes() {
         ].filter(Boolean); // 移除 null 值
 
         if (combinedData.length > 0) {
-            // 只定義後端的文件路徑
-            const backendFilePath = path.join(__dirname, '..', 'database', 'newsdata', 'index.json');
+            // 只定義後端的文件路徑，修改為直接存入 database 目錄
+            const backendFilePath = path.join(__dirname, '..', 'database', 'index.json');
             
             // 確保後端目錄存在
             const backendDirPath = path.dirname(backendFilePath);

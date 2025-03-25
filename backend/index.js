@@ -47,13 +47,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// 讀取 index.json 文件 - 同樣加上更靈活的路徑處理
+// 讀取 index.json 文件 - 只使用新路徑
 app.get('/api/index', (req, res) => {
-  // 嘗試多個可能的路徑
+  // 只嘗試新路徑
   const possiblePaths = [
-    path.join(__dirname, 'database', 'newsData', 'index.json'), // 原始路徑 (大寫 D)
-    path.join(__dirname, 'database', 'newsdata', 'index.json'), // 小寫 d
-    '/app/database/newsdata/index.json',                        // 與爬蟲一致的路徑
+    path.join(__dirname, 'database', 'index.json'),     // 本地路徑
+    '/app/database/index.json',                         // 部署路徑
   ];
   
   let foundPath = null;
@@ -67,13 +66,60 @@ app.get('/api/index', (req, res) => {
     }
   }
   
+  // 如果沒有找到檔案，創建一個
   if (!foundPath) {
-    console.error('無法找到 index.json 檔案，嘗試過的路徑:');
-    possiblePaths.forEach(p => console.error(`- ${p}`));
-    return res.status(500).json({ error: '無法讀取指數數據' });
+    console.log('未找到 index.json 檔案，嘗試創建新檔案');
+    
+    // 決定要使用哪個路徑來創建檔案
+    const createPath = process.env.NODE_ENV === 'production' 
+      ? '/app/database/index.json'
+      : path.join(__dirname, 'database', 'index.json');
+    
+    // 確保目錄存在
+    const createDir = path.dirname(createPath);
+    if (!fs.existsSync(createDir)) {
+      try {
+        fs.mkdirSync(createDir, { recursive: true });
+        console.log(`已創建目錄: ${createDir}`);
+      } catch (dirError) {
+        console.error(`創建目錄失敗: ${dirError.message}`);
+        return res.status(500).json({ error: '無法創建資料目錄' });
+      }
+    }
+    
+    // 創建空的指數數據檔案
+    try {
+      const emptyIndexData = [
+        {
+          id: "fear&greed",
+          data: {
+            timestamp: Math.floor(Date.now() / 1000).toString(),
+            value: "50",
+            value_classification: "中性"
+          }
+        },
+        {
+          id: "altcoin-index",
+          data: {
+            timestamp: Math.floor(Date.now() / 1000).toString(),
+            value: "50",
+            status: "It is not Altcoin Month!",
+            title: "Altcoin Month Index",
+            tooltip: "If 75% of the Top 50 coins performed better than Bitcoin over the last 30 days it is Altcoin Month"
+          }
+        }
+      ];
+      
+      fs.writeFileSync(createPath, JSON.stringify(emptyIndexData, null, 2), 'utf8');
+      console.log(`已創建新的 index.json 檔案在: ${createPath}`);
+      foundPath = createPath;
+    } catch (createError) {
+      console.error(`創建 index.json 檔案失敗: ${createError.message}`);
+      return res.status(500).json({ error: '無法創建指數數據檔案' });
+    }
   }
   
-  // 使用找到的路徑讀取檔案
+  // 使用找到或新創建的路徑讀取檔案
   fs.readFile(foundPath, 'utf8', (err, data) => {
     if (err) {
       console.error('讀取 index.json 時發生錯誤:', err);
@@ -92,13 +138,12 @@ app.get('/api/index', (req, res) => {
   });
 });
 
-// 讀取 news.json 文件 - 修改為更靈活的路徑處理
+// 讀取 news.json 文件 - 只使用新路徑
 app.get('/api/news', (req, res) => {
-  // 嘗試多個可能的路徑
+  // 只嘗試新路徑
   const possiblePaths = [
-    path.join(__dirname, 'database', 'newsData', 'news.json'), // 原始路徑 (大寫 D)
-    path.join(__dirname, 'database', 'newsdata', 'news.json'), // 小寫 d
-    '/app/database/newsdata/news.json',                        // 爬蟲日誌中顯示的路徑
+    path.join(__dirname, 'database', 'news.json'),      // 本地路徑
+    '/app/database/news.json',                          // 部署路徑
   ];
   
   let foundPath = null;
@@ -112,13 +157,53 @@ app.get('/api/news', (req, res) => {
     }
   }
   
+  // 如果沒有找到檔案，創建一個
   if (!foundPath) {
-    console.error('無法找到 news.json 檔案，嘗試過的路徑:');
-    possiblePaths.forEach(p => console.error(`- ${p}`));
-    return res.status(500).json({ error: '無法讀取新聞數據' });
+    console.log('未找到 news.json 檔案，嘗試創建新檔案');
+    
+    // 決定要使用哪個路徑來創建檔案
+    const createPath = process.env.NODE_ENV === 'production' 
+      ? '/app/database/news.json'
+      : path.join(__dirname, 'database', 'news.json');
+    
+    // 確保目錄存在
+    const createDir = path.dirname(createPath);
+    if (!fs.existsSync(createDir)) {
+      try {
+        fs.mkdirSync(createDir, { recursive: true });
+        console.log(`已創建目錄: ${createDir}`);
+      } catch (dirError) {
+        console.error(`創建目錄失敗: ${dirError.message}`);
+        return res.status(500).json({ error: '無法創建資料目錄' });
+      }
+    }
+    
+    // 創建空的新聞數據檔案
+    try {
+      const emptyNewsData = [
+        { timestamp: Date.now() },
+        {
+          id: 1,
+          title: "Welcome to Crypto Memo",
+          titleZh: "歡迎使用 Crypto Memo",
+          content: "Please use the scraper to fetch the latest crypto news.",
+          contentZh: "請使用爬蟲功能獲取最新的加密貨幣新聞。",
+          timeago: "Just now",
+          summaryZh: "這是一個預設的歡迎消息。請使用爬蟲功能來獲取真實的新聞數據。",
+          detailZh: "Crypto Memo 是一個加密貨幣新聞和指數跟踪工具。\n\n您可以爬取最新的加密貨幣新聞並將它們翻譯成中文。此外，您還可以跟踪比特幣恐懼與貪婪指數以及山寨幣月份指數。\n\n使用左側的筆記功能來保存重要信息。"
+        }
+      ];
+      
+      fs.writeFileSync(createPath, JSON.stringify(emptyNewsData, null, 2), 'utf8');
+      console.log(`已創建新的 news.json 檔案在: ${createPath}`);
+      foundPath = createPath;
+    } catch (createError) {
+      console.error(`創建 news.json 檔案失敗: ${createError.message}`);
+      return res.status(500).json({ error: '無法創建新聞數據檔案' });
+    }
   }
   
-  // 使用找到的路徑讀取檔案
+  // 使用找到或新創建的路徑讀取檔案
   fs.readFile(foundPath, 'utf8', (err, data) => {
     if (err) {
       console.error('讀取 news.json 時發生錯誤:', err);
@@ -240,6 +325,212 @@ app.get('/api/scrape/index/stream', (req, res) => {
   });
 });
 
+// 讀取或建立 user.json 檔案
+app.get('/api/users', (req, res) => {
+  // 嘗試新路徑
+  const possiblePaths = [
+    path.join(__dirname, 'database', 'user.json'),      // 本地路徑
+    '/app/database/user.json',                          // 部署路徑
+  ];
+  
+  let foundPath = null;
+  
+  // 找到第一個存在的路徑
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      foundPath = p;
+      console.log(`找到 user.json 檔案在: ${p}`);
+      break;
+    }
+  }
+  
+  // 如果沒有找到檔案，創建一個
+  if (!foundPath) {
+    console.log('未找到 user.json 檔案，嘗試創建新檔案');
+    
+    // 決定要使用哪個路徑來創建檔案
+    const createPath = process.env.NODE_ENV === 'production' 
+      ? '/app/database/user.json'
+      : path.join(__dirname, 'database', 'user.json');
+    
+    // 確保目錄存在
+    const createDir = path.dirname(createPath);
+    if (!fs.existsSync(createDir)) {
+      try {
+        fs.mkdirSync(createDir, { recursive: true });
+        console.log(`已創建目錄: ${createDir}`);
+      } catch (dirError) {
+        console.error(`創建目錄失敗: ${dirError.message}`);
+        return res.status(500).json({ error: '無法創建資料目錄' });
+      }
+    }
+    
+    // 創建默認的用戶數據檔案
+    try {
+      const defaultUsers = [
+        {
+          "id": "test",
+          "password": "test",
+          "control": "true",
+          "note": [
+            {
+              "timestamp": Date.now(),
+              "title": "歡迎使用 Crypto Memo",
+              "content": "這是一個預設的歡迎筆記。您可以添加自己的筆記，它們會顯示在這裡。"
+            }
+          ]
+        }
+      ];
+      
+      fs.writeFileSync(createPath, JSON.stringify(defaultUsers, null, 2), 'utf8');
+      console.log(`已創建新的 user.json 檔案在: ${createPath}`);
+      foundPath = createPath;
+    } catch (createError) {
+      console.error(`創建 user.json 檔案失敗: ${createError.message}`);
+      return res.status(500).json({ error: '無法創建用戶數據檔案' });
+    }
+  }
+  
+  // 使用找到或新創建的路徑讀取檔案
+  fs.readFile(foundPath, 'utf8', (err, data) => {
+    if (err) {
+      console.error('讀取 user.json 時發生錯誤:', err);
+      return res.status(500).json({ error: '無法讀取用戶數據' });
+    }
+    
+    try {
+      // 將 JSON 字串解析為物件後回傳
+      const userData = JSON.parse(data);
+      console.log(`成功讀取用戶數據，有 ${userData.length || 0} 個用戶`);
+      res.json(userData);
+    } catch (parseErr) {
+      console.error('解析 user.json 時發生錯誤:', parseErr);
+      res.status(500).json({ error: '用戶數據格式錯誤' });
+    }
+  });
+});
+
+// 登入 API
+app.post('/api/login', express.json(), (req, res) => {
+  const { id, password } = req.body;
+  
+  if (!id || !password) {
+    return res.status(400).json({ error: '帳號和密碼不能為空' });
+  }
+  
+  // 嘗試讀取 user.json
+  const possiblePaths = [
+    path.join(__dirname, 'database', 'user.json'),      // 本地路徑
+    '/app/database/user.json',                          // 部署路徑
+  ];
+  
+  let foundPath = null;
+  
+  // 找到第一個存在的路徑
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      foundPath = p;
+      break;
+    }
+  }
+  
+  if (!foundPath) {
+    return res.status(500).json({ error: '用戶數據檔案不存在' });
+  }
+  
+  fs.readFile(foundPath, 'utf8', (err, data) => {
+    if (err) {
+      console.error('讀取 user.json 時發生錯誤:', err);
+      return res.status(500).json({ error: '無法讀取用戶數據' });
+    }
+    
+    try {
+      const users = JSON.parse(data);
+      const user = users.find(u => u.id === id && u.password === password);
+      
+      if (user) {
+        // 登入成功
+        console.log(`用戶 ${id} 登入成功`);
+        res.json({ 
+          success: true, 
+          id: user.id, 
+          control: user.control,
+          note: user.note || []
+        });
+      } else {
+        // 登入失敗
+        console.log(`用戶 ${id} 登入失敗: 帳號或密碼不正確`);
+        res.status(401).json({ error: '帳號或密碼不正確' });
+      }
+    } catch (parseErr) {
+      console.error('解析 user.json 時發生錯誤:', parseErr);
+      res.status(500).json({ error: '用戶數據格式錯誤' });
+    }
+  });
+});
+
+// 儲存筆記 API
+app.post('/api/notes/save', express.json(), (req, res) => {
+  const { userId, notes } = req.body;
+  
+  if (!userId || !notes) {
+    return res.status(400).json({ error: '用戶ID和筆記不能為空' });
+  }
+  
+  // 嘗試讀取 user.json
+  const possiblePaths = [
+    path.join(__dirname, 'database', 'user.json'),      // 本地路徑
+    '/app/database/user.json',                          // 部署路徑
+  ];
+  
+  let foundPath = null;
+  
+  // 找到第一個存在的路徑
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      foundPath = p;
+      break;
+    }
+  }
+  
+  if (!foundPath) {
+    return res.status(500).json({ error: '用戶數據檔案不存在' });
+  }
+  
+  fs.readFile(foundPath, 'utf8', (err, data) => {
+    if (err) {
+      console.error('讀取 user.json 時發生錯誤:', err);
+      return res.status(500).json({ error: '無法讀取用戶數據' });
+    }
+    
+    try {
+      const users = JSON.parse(data);
+      const userIndex = users.findIndex(u => u.id === userId);
+      
+      if (userIndex === -1) {
+        return res.status(404).json({ error: '找不到該用戶' });
+      }
+      
+      // 更新用戶的筆記
+      users[userIndex].note = notes;
+      
+      // 寫回檔案
+      fs.writeFile(foundPath, JSON.stringify(users, null, 2), 'utf8', (writeErr) => {
+        if (writeErr) {
+          console.error('寫入 user.json 時發生錯誤:', writeErr);
+          return res.status(500).json({ error: '無法儲存筆記' });
+        }
+        
+        console.log(`用戶 ${userId} 筆記儲存成功`);
+        res.json({ success: true });
+      });
+    } catch (parseErr) {
+      console.error('解析 user.json 時發生錯誤:', parseErr);
+      res.status(500).json({ error: '用戶數據格式錯誤' });
+    }
+  });
+});
+
 // 處理根路徑請求
 app.get('/', (req, res) => {
   const origin = req.headers.origin;
@@ -266,15 +557,13 @@ app.get('/api/debug/files', (req, res) => {
     paths: {
       // 檢查 news.json
       news: [
-        { path: path.join(__dirname, 'database', 'newsData', 'news.json') },
-        { path: path.join(__dirname, 'database', 'newsdata', 'news.json') },
-        { path: '/app/database/newsdata/news.json' }
+        { path: path.join(__dirname, 'database', 'news.json') },     // 本地路徑
+        { path: '/app/database/news.json' }                          // 部署路徑
       ],
       // 檢查 index.json
       index: [
-        { path: path.join(__dirname, 'database', 'newsData', 'index.json') },
-        { path: path.join(__dirname, 'database', 'newsdata', 'index.json') },
-        { path: '/app/database/newsdata/index.json' }
+        { path: path.join(__dirname, 'database', 'index.json') },    // 本地路徑
+        { path: '/app/database/index.json' }                         // 部署路徑
       ]
     }
   };
@@ -324,18 +613,6 @@ app.get('/api/debug/files', (req, res) => {
       dbDirPaths.forEach(dbPath => {
         if (fs.existsSync(dbPath)) {
           diagnostics.dirContents[`db_${dbPath}`] = fs.readdirSync(dbPath);
-          
-          // 檢查 newsdata/newsData 目錄
-          const newsDirPaths = [
-            path.join(dbPath, 'newsdata'),
-            path.join(dbPath, 'newsData')
-          ];
-          
-          newsDirPaths.forEach(newsDir => {
-            if (fs.existsSync(newsDir)) {
-              diagnostics.dirContents[`newsdir_${newsDir}`] = fs.readdirSync(newsDir);
-            }
-          });
         }
       });
     }
@@ -358,4 +635,7 @@ app.listen(PORT, () => {
   console.log(`- http://localhost:${PORT}/api/news`);
   console.log(`- http://localhost:${PORT}/api/scrape/news/stream/:count?`);
   console.log(`- http://localhost:${PORT}/api/scrape/index/stream`);
+  console.log(`- http://localhost:${PORT}/api/users`);
+  console.log(`- http://localhost:${PORT}/api/login`);
+  console.log(`- http://localhost:${PORT}/api/notes/save`);
 });

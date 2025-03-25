@@ -31,12 +31,33 @@ const formatTimestamp = (timestamp) => {
 };
 
 function App() {
+  // 從 localStorage 檢查是否有已儲存的登入狀態
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const savedLoginState = localStorage.getItem('isLoggedIn');
+    return savedLoginState === 'true';
+  });
+  
+  // 從 localStorage 檢查是否有已儲存的用戶 ID
+  const [userId, setUserId] = useState(() => {
+    return localStorage.getItem('userId') || "";
+  });
+  
+  // 從 localStorage 檢查是否有已儲存的管理員權限
+  const [isAdmin, setIsAdmin] = useState(() => {
+    const savedAdminState = localStorage.getItem('isAdmin');
+    return savedAdminState === 'true';
+  });
+  
+  // 從 localStorage 檢查是否有已儲存的筆記資料
+  const [memos, setMemos] = useState(() => {
+    const savedMemos = localStorage.getItem('memos');
+    return savedMemos ? JSON.parse(savedMemos) : [];
+  });
+  
   const [news, setNews] = useState([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [memo, setMemo] = useState("");
-  const [memos, setMemos] = useState([]);
   const [selectedNews, setSelectedNews] = useState(null);
   const [showDelete, setShowDelete] = useState(null);
   const touchStartX = useRef(null);
@@ -49,6 +70,102 @@ function App() {
   const [apiError, setApiError] = useState(null);
   const [hasLoggedSuccess, setHasLoggedSuccess] = useState(false);
   const [showDevelopingModal, setShowDevelopingModal] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // 當登入狀態改變時，更新 localStorage
+  useEffect(() => {
+    localStorage.setItem('isLoggedIn', isLoggedIn);
+  }, [isLoggedIn]);
+  
+  // 當用戶 ID 改變時，更新 localStorage
+  useEffect(() => {
+    localStorage.setItem('userId', userId);
+  }, [userId]);
+  
+  // 當管理員權限改變時，更新 localStorage
+  useEffect(() => {
+    localStorage.setItem('isAdmin', isAdmin);
+  }, [isAdmin]);
+  
+  // 當筆記資料改變時，更新 localStorage
+  useEffect(() => {
+    localStorage.setItem('memos', JSON.stringify(memos));
+  }, [memos]);
+  
+  // 當 isLoggedIn 為 true 但頁面剛載入（重新整理後）時，嘗試重新同步筆記
+  useEffect(() => {
+    // 檢查是否為頁面重新載入後的首次執行
+    const isPageRefresh = document.readyState === 'complete';
+    
+    if (isLoggedIn && userId && isPageRefresh) {
+      // 在頁面重新載入後，重新從伺服器獲取筆記資料
+      const loadUserData = async () => {
+        try {
+          const baseUrls = [
+            'http://localhost:3000',
+            'https://crypto-memo-production.up.railway.app'
+          ];
+          
+          for (const baseUrl of baseUrls) {
+            try {
+              console.log(`重新整理後嘗試獲取用戶資料: ${baseUrl}/api/users`);
+              
+              const response = await axios.get(`${baseUrl}/api/users`, { 
+                timeout: 5000 
+              });
+              
+              if (response.data && Array.isArray(response.data)) {
+                // 找到當前用戶
+                const currentUser = response.data.find(user => user.id === userId);
+                
+                if (currentUser && currentUser.note) {
+                  console.log(`找到用戶 ${userId} 的筆記資料，共 ${currentUser.note.length} 條`);
+                  
+                  // 合併本地筆記和伺服器筆記，以最新的時間戳為準
+                  const localMemos = JSON.parse(localStorage.getItem('memos') || '[]');
+                  
+                  // 建立一個時間戳到筆記的映射
+                  const memoMap = {};
+                  
+                  // 添加本地筆記
+                  localMemos.forEach(memo => {
+                    if (!memoMap[memo.timestamp] || memo.timestamp > memoMap[memo.timestamp].timestamp) {
+                      memoMap[memo.timestamp] = memo;
+                    }
+                  });
+                  
+                  // 添加伺服器筆記
+                  currentUser.note.forEach(memo => {
+                    if (!memoMap[memo.timestamp] || memo.timestamp > memoMap[memo.timestamp].timestamp) {
+                      memoMap[memo.timestamp] = memo;
+                    }
+                  });
+                  
+                  // 轉換回數組並按時間戳排序（降序）
+                  const mergedMemos = Object.values(memoMap).sort((a, b) => b.timestamp - a.timestamp);
+                  
+                  // 更新本地筆記
+                  setMemos(mergedMemos);
+                  localStorage.setItem('memos', JSON.stringify(mergedMemos));
+                  
+                  // 同步到伺服器
+                  syncNotesToServer(true);
+                  break;
+                }
+              }
+            } catch (error) {
+              console.error(`無法從 ${baseUrl} 獲取用戶資料:`, error.message);
+            }
+          }
+        } catch (error) {
+          console.error("重新載入用戶資料失敗:", error);
+        }
+      };
+      
+      loadUserData();
+    }
+  }, [isLoggedIn, userId]);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -61,62 +178,171 @@ function App() {
         
         let succeeded = false;
         let lastError = null;
+        let successEndpoint = null;
         
-        // 只在開發環境輸出
-        if (process.env.NODE_ENV === 'development') {
-          conditionalLog("🔄 正在嘗試獲取新聞數據...");
-        }
+        // 使用 console.log 確保一定會輸出
+        console.log("🔄 正在嘗試獲取新聞數據...");
         
         // 依序嘗試每個端點
         for (const endpoint of endpoints) {
           try {
-            // 只在開發環境且是首次嘗試時輸出
-            if (process.env.NODE_ENV === 'development' && endpoint === endpoints[0]) {
-              conditionalLog(`嘗試連接到: ${endpoint}`);
-            }
+            console.log(`嘗試連接到: ${endpoint}`);
             
-            const response = await axios.get(endpoint, { timeout: 3000 }); // 3秒超時
+            const response = await axios.get(endpoint, { timeout: 5000 }); // 增加超時時間
             setNews(response.data);
             
-            // 只在開發環境且未輸出過成功日誌時輸出
-            if (process.env.NODE_ENV === 'development' && !hasLoggedSuccess) {
-              conditionalLog("成功連接到:", endpoint);
-              setHasLoggedSuccess(true);
-            }
+            // 直接使用 console.log 確保一定輸出
+            console.log(`✅ 成功連接到: ${endpoint}`);
+            successEndpoint = endpoint;
             
             succeeded = true;
             break; // 成功取得數據後跳出迴圈
           } catch (error) {
-            conditionalLog(`連接到 ${endpoint} 失敗:`, error.message);
+            console.log(`❌ 連接到 ${endpoint} 失敗:`, error.message);
             lastError = error;
             // 失敗後繼續嘗試下一個端點
           }
         }
         
-        // 如果所有端點都失敗
-        if (!succeeded) {
-          conditionalError("無法連接到任何 API 端點:", lastError);
-          // 這裡可以設置一個錯誤狀態或顯示錯誤訊息給使用者
-          setApiError("無法連接到新聞數據服務。請稍後再試。");
+        // 無論如何都記錄最終結果
+        if (succeeded) {
+          console.log(`📊 新聞數據最終使用的 API 端點: ${successEndpoint}`);
+          setApiError(null);
         } else {
-          setApiError(null); // 清除任何之前的錯誤
+          console.error("❌ 無法連接到任何新聞 API 端點:", lastError);
+          setApiError("無法連接到新聞數據服務。請稍後再試。");
         }
       };
       
-      tryApiEndpoints();
+      // 同樣的邏輯也適用於獲取指數數據
+      const tryIndexEndpoints = async () => {
+        const endpoints = [
+          'http://localhost:3000/api/index',
+          'https://crypto-memo-production.up.railway.app/api/index'//部署後記得改
+        ];
+        
+        let succeeded = false;
+        let successEndpoint = null;
+        
+        console.log("🔄 正在嘗試獲取指數數據...");
+        
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`嘗試連接到指數 API: ${endpoint}`);
+            
+            // 實際獲取數據並存儲結果，而不僅僅是測試連接
+            const response = await axios.get(endpoint, { timeout: 5000 });
+            
+            console.log(`✅ 成功連接到指數 API: ${endpoint}`);
+            successEndpoint = endpoint;
+            
+            // 可能需要將數據存儲到組件中的狀態
+            // 例如: setIndexData(response.data);
+            
+            succeeded = true;
+            break;
+          } catch (error) {
+            console.log(`❌ 連接到指數 API ${endpoint} 失敗:`, error.message);
+            // 失敗後繼續嘗試下一個端點
+          }
+        }
+        
+        // 無論如何都記錄最終結果
+        if (succeeded) {
+          console.log(`📊 指數數據最終使用的 API 端點: ${successEndpoint}`);
+        } else {
+          console.error("❌ 無法連接到任何指數 API 端點");
+        }
+      };
+      
+      // 確保兩個函數都獨立運行，任一函數的失敗不會阻止另一個函數的執行
+      tryApiEndpoints().catch(e => console.error("新聞 API 調用失敗:", e));
+      tryIndexEndpoints().catch(e => console.error("指數 API 調用失敗:", e));
     }
   }, [isLoggedIn]);
 
-  const handleLogin = () => {
-    // 只允許特定的帳號和密碼
-    if (account === "test" && password === "test") {
-      setIsLoggedIn(true);
-    } else {
-      alert("帳號或密碼錯誤");
+  const handleLogin = async () => {
+    setLoginError("");
+    if (!account || !password) {
+      setLoginError("帳號和密碼不能為空");
+      return;
+    }
+    
+    try {
+      // 確定正確的 API URL
+      const baseUrls = [
+        'http://localhost:3000',
+        'https://crypto-memo-production.up.railway.app'
+      ];
+      
+      let succeeded = false;
+      let lastError = null;
+      
+      console.log("嘗試登入...");
+      
+      // 依序嘗試每個端點
+      for (const baseUrl of baseUrls) {
+        try {
+          console.log(`嘗試連接到登入 API: ${baseUrl}/api/login`);
+          
+          const response = await axios.post(`${baseUrl}/api/login`, {
+            id: account,
+            password: password
+          }, { 
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 5000 
+          });
+          
+          const { success, id, control, note } = response.data;
+          
+          if (success) {
+            setIsLoggedIn(true);
+            setUserId(id);
+            setIsAdmin(control === "true");
+            
+            // 設置用戶的筆記
+            if (note && Array.isArray(note)) {
+              setMemos(note);
+            }
+            
+            // 更新 localStorage
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userId', id);
+            localStorage.setItem('isAdmin', control === "true");
+            if (note && Array.isArray(note)) {
+              localStorage.setItem('memos', JSON.stringify(note));
+            }
+            
+            console.log(`用戶 ${id} 登入成功，管理員權限: ${control}`);
+            succeeded = true;
+            break;
+          }
+        } catch (error) {
+          console.log(`連接到 ${baseUrl}/api/login 失敗:`, error.message);
+          lastError = error;
+          // 失敗後繼續嘗試下一個端點
+        }
+      }
+      
+      if (!succeeded) {
+        throw lastError;
+      }
+    } catch (error) {
+      console.error("登入失敗:", error);
+      
+      if (error.response) {
+        // 伺服器返回的錯誤訊息
+        setLoginError(error.response.data.error || "帳號或密碼錯誤");
+      } else if (error.request) {
+        // 請求發送但沒收到回應
+        setLoginError("無法連接到伺服器，請稍後再試");
+      } else {
+        // 請求設置發生錯誤
+        setLoginError("登入過程發生錯誤");
+      }
     }
   };
 
-  // 修改 handleAddMemo 函數
   const handleAddMemo = () => {
     if (isNoteModalOpen) {
       // 從筆記視窗新增
@@ -145,6 +371,9 @@ function App() {
         setIsNoteModalOpen(true);
       }
     }
+    
+    // 觸發立即同步
+    setTimeout(() => syncNotesToServer(), 300);
   };
 
   const handleDeleteMemo = (indexToDelete) => {
@@ -167,6 +396,9 @@ function App() {
       });
       return updated;
     });
+    
+    // 觸發立即同步
+    setTimeout(() => syncNotesToServer(), 300);
   };
 
   // 新增處理新聞點擊的函數
@@ -516,6 +748,23 @@ ${news.url}`;
       setLocalTitle(editingTitle);
       setLocalContent(editingContent);
     }, [editingTitle, editingContent]);
+    
+    const handleSaveNote = () => {
+      if (localTitle.trim() || localContent.trim()) {
+        const newMemo = {
+          title: localTitle.trim() || localContent.trim(),
+          content: localContent.trim(),
+          timestamp: Date.now(),
+        };
+        setMemos([newMemo, ...memos]);
+        setIsNoteModalOpen(false);
+        setEditingTitle("");
+        setEditingContent("");
+        
+        // 觸發立即同步
+        setTimeout(() => syncNotesToServer(), 300);
+      }
+    };
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -553,19 +802,7 @@ ${news.url}`;
               取消
             </button>
             <button
-              onClick={() => {
-                if (localTitle.trim() || localContent.trim()) {
-                  const newMemo = {
-                    title: localTitle.trim() || localContent.trim(),
-                    content: localContent.trim(),
-                    timestamp: Date.now(),
-                  };
-                  setMemos([newMemo, ...memos]);
-                  setIsNoteModalOpen(false);
-                  setEditingTitle("");
-                  setEditingContent("");
-                }
-              }}
+              onClick={handleSaveNote}
               className="px-4 md:px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
             >
               儲存
@@ -639,7 +876,117 @@ ${news.url}`;
     );
   };
 
-  // 修改登入表單部分為響應式
+  // 修改筆記同步相關邏輯
+
+  // 1. 改進筆記同步函數，增加錯誤重試和日誌
+  const syncNotesToServer = async (forcedSync = false) => {
+    if (!isLoggedIn || !userId) return false;
+    
+    // 如果沒有筆記且不是強制同步，則不進行操作
+    if (memos.length === 0 && !forcedSync) return false;
+    
+    setIsSyncing(true);
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const baseUrls = [
+          'http://localhost:3000',
+          'https://crypto-memo-production.up.railway.app'
+        ];
+        
+        let succeeded = false;
+        
+        // 嘗試不同的端點
+        for (const baseUrl of baseUrls) {
+          try {
+            console.log(`嘗試同步筆記到 ${baseUrl}/api/notes/save...`);
+            
+            const response = await axios.post(`${baseUrl}/api/notes/save`, {
+              userId: userId,
+              notes: memos
+            }, { 
+              headers: { 'Content-Type': 'application/json' },
+              timeout: 5000 
+            });
+            
+            if (response.data.success) {
+              console.log(`✅ 筆記同步成功 (${baseUrl})`);
+              succeeded = true;
+              setIsSyncing(false);
+              return true;
+            }
+          } catch (error) {
+            console.error(`❌ 連接到 ${baseUrl}/api/notes/save 失敗:`, error.message);
+          }
+        }
+        
+        if (succeeded) break;
+        
+        // 如果所有端點都失敗，增加重試計數
+        retryCount++;
+        console.log(`筆記同步失敗，${maxRetries - retryCount}次重試機會剩餘`);
+        
+        // 在重試前等待一段時間
+        if (retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      } catch (error) {
+        console.error("筆記同步過程中發生未預期錯誤:", error);
+        retryCount++;
+      }
+    }
+    
+    setIsSyncing(false);
+    console.error("❌ 筆記同步失敗，已達到最大重試次數");
+    return false;
+  };
+
+  // 2. 在處理筆記變更時同步
+  useEffect(() => {
+    // 只有在登入後且有筆記變動時才同步
+    if (isLoggedIn && userId && memos.length > 0) {
+      // 使用防抖，減少頻繁 API 調用
+      const timer = setTimeout(() => {
+        syncNotesToServer();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [memos, isLoggedIn, userId]);
+
+  // 3. 在登出前同步資料
+  const handleLogout = () => {
+    // 清除 localStorage
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('isAdmin');
+    localStorage.removeItem('memos');
+    
+    // 重置狀態
+    setIsLoggedIn(false);
+    setUserId("");
+    setIsAdmin(false);
+    setMemos([]);
+    setAccount("");
+    setPassword("");
+
+    console.log("已成功登出");
+  };
+
+  // 將登出函數暴露到全局範圍
+  useEffect(() => {
+    // 將登出函數掛載到 window 對象上
+    window.logout = handleLogout;
+    
+    // 組件卸載時移除全局函數
+    return () => {
+      window.logout = undefined;
+    };
+  }, []);
+
+  // 修改登入表單部分為響應式並顯示錯誤訊息
   if (!isLoggedIn) {
     return (
       <div className="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
@@ -648,7 +995,7 @@ ${news.url}`;
             Crypto Memo
           </h2>
           <input
-            type="account"
+            type="text"
             placeholder="帳號"
             value={account}
             onChange={(e) => setAccount(e.target.value)}
@@ -663,6 +1010,14 @@ ${news.url}`;
             onKeyPress={handleKeyPress}
             className="w-full p-2 mb-4 rounded-md bg-gray-700 text-white"
           />
+          
+          {/* 顯示登入錯誤訊息 */}
+          {loginError && (
+            <div className="text-red-400 mb-4 text-sm">
+              {loginError}
+            </div>
+          )}
+          
           <button
             onClick={handleLogin}
             className="bg-yellow-500 px-4 py-2 rounded-md w-full mb-4 hover:bg-yellow-600 cursor-pointer transition-colors"
@@ -723,6 +1078,11 @@ ${news.url}`;
             </button>
           </div>
         </form>
+        
+        {/* 顯示正在同步提示 */}
+        {isSyncing && (
+          <div className="mb-2 text-xs text-gray-400">正在同步筆記...</div>
+        )}
         
         {/* 筆記列表 */}
         <div className="overflow-y-auto flex-1">

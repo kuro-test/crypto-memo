@@ -36,18 +36,14 @@ const GaugeChart = ({ onAddToNote }) => {
       
       let succeeded = false;
       
-      // 只在開發環境輸出
-      if (process.env.NODE_ENV === 'development') {
-        console.log("🔄 正在嘗試獲取恐懼貪婪指數...");
-      }
+      // 確保一定會輸出，使用 console.log
+      console.log("🔄 正在嘗試獲取恐懼貪婪指數...");
       
       // 依序嘗試每個端點
       for (const endpoint of endpoints) {
         try {
-          // 只在開發環境且是第一次嘗試時輸出
-          if (process.env.NODE_ENV === 'development' && endpoint === endpoints[0]) {
-            console.log(`嘗試連接到: ${endpoint}`);
-          }
+          // 每次嘗試都明確記錄
+          console.log(`嘗試連接到: ${endpoint}`);
           
           const response = await axios.get(endpoint, { timeout: 3000 });
           
@@ -57,17 +53,13 @@ const GaugeChart = ({ onAddToNote }) => {
           if (fearGreedData && fearGreedData.data) {
             const data = fearGreedData.data;
 
-            // 只在開發環境且未輸出過成功日誌時輸出
-            if (process.env.NODE_ENV === 'development' && !hasLoggedSuccess) {
-              console.log("📊 最新指數資料:", {
-                時間戳記: data.timestamp,
-                數值: data.value,
-                狀態: data.value_classification
-              });
-              
-              console.log("✅ 恐懼貪婪指數更新成功，使用端點:", endpoint);
-              setHasLoggedSuccess(true);
-            }
+            // 明確標記成功連接的端點
+            console.log(`✅ 成功連接到: ${endpoint}`);
+            console.log("📊 最新恐懼貪婪指數資料:", {
+              時間戳記: data.timestamp,
+              數值: data.value,
+              狀態: data.value_classification
+            });
 
             setIndexValue(parseInt(data.value));
             setLabel(data.value_classification);
@@ -75,23 +67,16 @@ const GaugeChart = ({ onAddToNote }) => {
             succeeded = true;
             break; // 成功取得數據後跳出迴圈
           } else {
-            // 只在開發環境輸出
-            if (process.env.NODE_ENV === 'development') {
-              console.log("❓ 在回應中找不到恐懼貪婪指數資料");
-            }
+            console.log(`❓ 在 ${endpoint} 回應中找不到恐懼貪婪指數資料`);
           }
         } catch (error) {
-          // 只在開發環境輸出
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`連接到 ${endpoint} 失敗:`, error.message);
-          }
+          console.log(`❌ 連接到 ${endpoint} 失敗:`, error.message);
         }
       }
       
       // 如果所有端點都失敗
       if (!succeeded) {
         const errorMsg = "無法獲取恐懼貪婪指數資料";
-        // 錯誤始終輸出，因為這是用戶需要知道的
         console.error("❌ " + errorMsg);
         setError(errorMsg);
       } else {

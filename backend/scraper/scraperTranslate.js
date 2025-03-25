@@ -138,7 +138,7 @@ function ensureDirectoryExists(dirPath) {
   return true;
 }
 
-// 主要爬蟲函數 - 直接整合為單一函數，包含儲存後端部分
+// 主要爬蟲函數 - 修改存儲路徑
 async function scraperTranslate(count = 10) {
   try {
     const timestamp = Date.now();
@@ -201,8 +201,8 @@ async function scraperTranslate(count = 10) {
       }
     }
 
-    // 只儲存到後端路徑
-    const backendFilePath = path.join(__dirname, '..', 'database', 'newsdata', 'news.json');
+    // 只儲存到後端路徑，修改為直接存入 database 目錄
+    const backendFilePath = path.join(__dirname, '..', 'database', 'news.json');
     
     // 確保後端目錄存在
     const backendDirPath = path.dirname(backendFilePath);

@@ -75,7 +75,7 @@ export async function callApi(options) {
     endpoint,           // API端點，例如 '/api/index'
     method = 'GET',     // 請求方法
     data = null,        // 請求數據
-    timeout = 5000,     // 超時時間
+    timeout = 10000,    // 增加默認超時時間
     headers = {},       // 自定義標頭
     successLogType,     // 成功日誌類型
     errorLogType,       // 錯誤日誌類型
@@ -116,11 +116,51 @@ export async function callApi(options) {
   
   for (const baseUrl of envSequence) {
     try {
-      // 輸出當前正在嘗試的環境（僅開發模式）
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`正在嘗試使用 ${baseUrl} 環境發送 ${method} 請求到 ${endpoint}`);
+      // 輸出當前正在嘗試的環境
+      console.log(`正在嘗試使用 ${baseUrl} 環境發送 ${method} 請求到 ${endpoint}`);
+      
+      // 嘗試使用 fetch API 替代 axios
+      if (method === 'GET') {
+        // 使用 fetch 進行 GET 請求
+        try {
+          const response = await fetch(`${baseUrl}${endpoint}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+              ...headers
+            }
+          });
+          
+          if (response.ok) {
+            const responseData = await response.json();
+            
+            // 請求成功，更新當前環境設置
+            API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
+            
+            // 記錄成功日誌
+            if (successLogType) {
+              log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
+            }
+            
+            console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用 fetch)`);
+            
+            return { 
+              success: true, 
+              data: responseData, 
+              env: baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL' 
+            };
+          } else {
+            throw new Error(`HTTP 錯誤: ${response.status}`);
+          }
+        } catch (fetchError) {
+          console.warn(`使用 fetch 請求失敗: ${fetchError.message}，回退到 axios`);
+          // 如果 fetch 失敗，回退到 axios
+        }
       }
       
+      // 使用 axios 作為回退或處理 POST 請求
       const response = await axios({
         url: `${baseUrl}${endpoint}`,
         method,
@@ -129,6 +169,8 @@ export async function callApi(options) {
         timeout,
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
           ...headers
         }
       });
@@ -141,10 +183,7 @@ export async function callApi(options) {
         log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
       }
       
-      // 輸出連接成功信息（僅開發模式）
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ 成功連接到 ${baseUrl} 環境`);
-      }
+      console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用 axios)`);
       
       return { 
         success: true, 
@@ -154,10 +193,8 @@ export async function callApi(options) {
     } catch (error) {
       lastError = error;
       
-      // 輸出連接失敗信息（僅開發模式）
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`❌ 無法連接到 ${baseUrl} 環境: ${error.message}`);
-      }
+      // 輸出連接失敗信息
+      console.warn(`❌ 無法連接到 ${baseUrl} 環境: ${error.message}`);
       
       // 繼續嘗試下一個環境
       continue;

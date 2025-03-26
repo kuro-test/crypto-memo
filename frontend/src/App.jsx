@@ -161,25 +161,100 @@ function App() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      // 依序嘗試不同的 API 端點
-      const tryApiEndpoints = async () => {
+      // 完全重寫新聞獲取邏輯，專門處理生產環境問題
+      const fetchNews = async () => {
+        console.log('手動刷新新聞...');
+        
         try {
-          const response = await axios.get(`${getApiEndpoint()}/api/news`, { timeout: 5000 });
-          setNews(response.data);
-          log(LOG_TYPES.NEWS_SUCCESS);
-          return;
-        } catch (error) {
-          if (!API_CONFIG.isUsingProd) {
-            switchToProd();
-            return tryApiEndpoints(); // 重試一次
+          // 嘗試使用當前環境獲取新聞
+          const currentUrl = getApiEndpoint();
+          console.log(`首先嘗試從當前環境獲取: ${currentUrl}/api/news`);
+          
+          try {
+            const response = await axios.get(`${currentUrl}/api/news`, { 
+              timeout: 8000,
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            });
+            
+            if (response.data && Array.isArray(response.data)) {
+              console.log(`✅ 成功從 ${currentUrl} 獲取新聞，找到 ${response.data.length} 條記錄`);
+              setNews(response.data);
+              return;
+            }
+          } catch (error) {
+            console.warn(`從當前環境獲取新聞失敗: ${error.message}`);
           }
-          log(LOG_TYPES.NEWS_ERROR);
-          setApiError("無法連接到新聞數據服務。請稍後再試。");
+          
+          // 如果當前環境失敗，嘗試回退到指定的環境
+          const fallbackUrls = [
+            'http://localhost:3000',
+            'https://crypto-memo-production.up.railway.app'
+          ];
+          
+          for (const baseUrl of fallbackUrls) {
+            try {
+              console.log(`嘗試從回退環境獲取: ${baseUrl}/api/news`);
+              
+              const response = await fetch(`${baseUrl}/api/news`, {
+                method: 'GET',
+                headers: {
+                  'Cache-Control': 'no-cache',
+                  'Pragma': 'no-cache'
+                }
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data && Array.isArray(data)) {
+                  console.log(`✅ 成功從回退環境 ${baseUrl} 獲取新聞，找到 ${data.length} 條記錄`);
+                  setNews(data);
+                  return;
+                }
+              }
+            } catch (error) {
+              console.warn(`從回退環境 ${baseUrl} 獲取新聞失敗: ${error.message}`);
+              continue;
+            }
+          }
+          
+          // 如果所有嘗試都失敗，使用本地備用數據
+          console.error('所有獲取新聞嘗試都失敗，使用備用數據');
+          setNews([{
+            id: 1,
+            titleZh: "無法連接到新聞服務",
+            contentZh: "目前無法獲取最新新聞，請稍後再試。",
+            timeago: "剛才",
+            timestamp: Date.now()
+          }]);
+        } catch (error) {
+          console.error('獲取新聞時發生未處理的錯誤:', error);
+          setNews([{
+            id: 1,
+            titleZh: "無法連接到新聞服務",
+            contentZh: "發生了未知錯誤，請稍後再試。",
+            timeago: "剛才",
+            timestamp: Date.now()
+          }]);
         }
       };
       
-      // 同樣的邏輯也適用於獲取指數數據
-      const tryIndexEndpoints = async () => {
+      // 調用新聞獲取函數
+      fetchNews().catch(error => {
+        console.error('獲取新聞時發生未處理的錯誤:', error);
+        setNews([{
+          id: 1,
+          titleZh: "無法連接到新聞服務",
+          contentZh: "發生了未知錯誤，請稍後再試。",
+          timeago: "剛才",
+          timestamp: Date.now()
+        }]);
+      });
+      
+      // 仍然嘗試獲取指數數據，但使用單獨的函數
+      const fetchIndexData = async () => {
         const baseUrls = [
           'http://localhost:3000',
           'https://crypto-memo-production.up.railway.app'
@@ -187,26 +262,26 @@ function App() {
         
         for (const baseUrl of baseUrls) {
           try {
-            await axios.get(`${baseUrl}/api/index`, { timeout: 5000 });
+            await axios.get(`${baseUrl}/api/index`, { 
+              timeout: 5000,
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            });
+            console.log(`✅ 成功從 ${baseUrl} 獲取指數數據`);
             return;
           } catch (error) {
+            console.warn(`從 ${baseUrl} 獲取指數數據失敗: ${error.message}`);
             continue;
           }
         }
+        
+        console.error('所有獲取指數數據的嘗試都失敗');
       };
       
-      // 確保兩個函數都獨立運行，任一函數的失敗不會阻止另一個函數的執行
-      tryApiEndpoints().catch(e => {
-        // 只在開發環境輸出錯誤日誌
-        if (process.env.NODE_ENV === 'development') {
-          console.error("新聞 API 調用失敗");
-        }
-      });
-      tryIndexEndpoints().catch(e => {
-        // 只在開發環境輸出錯誤日誌
-        if (process.env.NODE_ENV === 'development') {
-          console.error("指數 API 調用失敗");
-        }
+      fetchIndexData().catch(error => {
+        console.error('獲取指數數據時發生未處理的錯誤:', error);
         });
     }
   }, [isLoggedIn]);
@@ -963,48 +1038,65 @@ ${news.url}`;
 
   // 修改 fetchNews 函數，增強錯誤處理
   const fetchNews = async () => {
+    console.log('手動刷新新聞...');
+    
     try {
-      // 先嘗試通過 callApi 函數獲取
-      const result = await callApi({
-        endpoint: '/api/news',
-        method: 'GET',
-        timeout: 10000, // 增加超時時間
-        successLogType: LOG_TYPES.NEWS_SUCCESS,
-        errorLogType: LOG_TYPES.NEWS_ERROR
-      });
+      // 嘗試使用當前環境獲取新聞
+      const currentUrl = getApiEndpoint();
+      console.log(`首先嘗試從當前環境獲取: ${currentUrl}/api/news`);
       
-      if (result.success && Array.isArray(result.data)) {
-        setNews(result.data);
-        return;
+      try {
+        const response = await axios.get(`${currentUrl}/api/news`, { 
+          timeout: 8000,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        if (response.data && Array.isArray(response.data)) {
+          console.log(`✅ 成功從 ${currentUrl} 獲取新聞，找到 ${response.data.length} 條記錄`);
+          setNews(response.data);
+          return;
+        }
+      } catch (error) {
+        console.warn(`從當前環境獲取新聞失敗: ${error.message}`);
       }
       
-      // 如果 callApi 失敗，直接使用 axios 嘗試從各個環境獲取
-      const baseUrls = [
-        API_CONFIG.LOCAL,
-        API_CONFIG.PROD
+      // 如果當前環境失敗，嘗試回退到指定的環境
+      const fallbackUrls = [
+        'http://localhost:3000',
+        'https://crypto-memo-production.up.railway.app'
       ];
       
-      for (const baseUrl of baseUrls) {
+      for (const baseUrl of fallbackUrls) {
         try {
-          console.log(`嘗試從 ${baseUrl}/api/news 獲取新聞數據...`);
-          const response = await axios.get(`${baseUrl}/api/news`, { 
-            timeout: 8000,
-            headers: { 'Cache-Control': 'no-cache' } // 防止緩存問題
+          console.log(`嘗試從回退環境獲取: ${baseUrl}/api/news`);
+          
+          const response = await fetch(`${baseUrl}/api/news`, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
           });
           
-          if (response.data && Array.isArray(response.data)) {
-            console.log(`成功從 ${baseUrl} 獲取新聞數據`);
-            setNews(response.data);
-            return;
+          if (response.ok) {
+            const data = await response.json();
+            if (data && Array.isArray(data)) {
+              console.log(`✅ 成功從回退環境 ${baseUrl} 獲取新聞，找到 ${data.length} 條記錄`);
+              setNews(data);
+              return;
+            }
           }
-        } catch (innerError) {
-          console.warn(`從 ${baseUrl} 獲取新聞失敗:`, innerError.message);
+        } catch (error) {
+          console.warn(`從回退環境 ${baseUrl} 獲取新聞失敗: ${error.message}`);
           continue;
         }
       }
       
-      // 如果所有嘗試都失敗，使用備用數據
-      console.warn('所有獲取新聞嘗試都失敗，使用預設數據');
+      // 如果所有嘗試都失敗，使用本地備用數據
+      console.error('所有獲取新聞嘗試都失敗，使用備用數據');
       setNews([{
         id: 1,
         titleZh: "無法連接到新聞服務",
@@ -1012,16 +1104,12 @@ ${news.url}`;
         timeago: "剛才",
         timestamp: Date.now()
       }]);
-      
     } catch (error) {
-      console.error('獲取新聞時發生錯誤:', error);
-      setApiError("無法連接到新聞數據服務。請稍後再試。");
-      
-      // 設置備用數據
+      console.error('獲取新聞時發生未處理的錯誤:', error);
       setNews([{
         id: 1,
         titleZh: "無法連接到新聞服務",
-        contentZh: "目前無法獲取最新新聞，請稍後再試。",
+        contentZh: "發生了未知錯誤，請稍後再試。",
         timeago: "剛才",
         timestamp: Date.now()
       }]);

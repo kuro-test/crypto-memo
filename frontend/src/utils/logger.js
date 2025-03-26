@@ -119,18 +119,24 @@ export async function callApi(options) {
       // 輸出當前正在嘗試的環境
       console.log(`正在嘗試使用 ${baseUrl} 環境發送 ${method} 請求到 ${endpoint}`);
       
-      // 嘗試使用 fetch API 替代 axios
+      // 修正 CORS 問題：移除可能導致 CORS 問題的 header
+      const safeHeaders = { ...headers };
+      // 如果是生產環境，移除 cache-control 和 pragma 請求頭，因為它們可能導致 CORS 問題
+      if (baseUrl === API_CONFIG.PROD) {
+        delete safeHeaders['Cache-Control'];
+        delete safeHeaders['Pragma'];
+      }
+      
+      // 使用 fetch API 處理請求，對於 GET 和 POST 使用不同的方式
       if (method === 'GET') {
-        // 使用 fetch 進行 GET 請求
         try {
           const response = await fetch(`${baseUrl}${endpoint}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache',
-              ...headers
-            }
+              ...safeHeaders
+            },
+            credentials: 'omit' // 不發送 cookie，幫助避免某些 CORS 問題
           });
           
           if (response.ok) {
@@ -155,41 +161,98 @@ export async function callApi(options) {
             throw new Error(`HTTP 錯誤: ${response.status}`);
           }
         } catch (fetchError) {
-          console.warn(`使用 fetch 請求失敗: ${fetchError.message}，回退到 axios`);
-          // 如果 fetch 失敗，回退到 axios
+          console.warn(`使用 fetch 請求失敗: ${fetchError.message}，嘗試使用 axios`);
+          // 如果 fetch 失敗，嘗試使用 axios
+        }
+      } else if (method === 'POST') {
+        // 對於 POST 請求，分開處理
+        try {
+          const fetchOptions = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...safeHeaders
+            },
+            credentials: 'omit',
+            body: JSON.stringify(data)
+          };
+          
+          const response = await fetch(`${baseUrl}${endpoint}`, fetchOptions);
+          
+          if (response.ok) {
+            const responseData = await response.json();
+            
+            // 請求成功，更新當前環境設置
+            API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
+            
+            // 記錄成功日誌
+            if (successLogType) {
+              log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
+            }
+            
+            console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用 fetch POST)`);
+            
+            return { 
+              success: true, 
+              data: responseData, 
+              env: baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL' 
+            };
+          } else {
+            throw new Error(`HTTP 錯誤: ${response.status}`);
+          }
+        } catch (fetchPostError) {
+          console.warn(`使用 fetch POST 請求失敗: ${fetchPostError.message}，嘗試使用 axios`);
+          // 如果 fetch POST 失敗，嘗試使用 axios
         }
       }
       
-      // 使用 axios 作為回退或處理 POST 請求
-      const response = await axios({
-        url: `${baseUrl}${endpoint}`,
-        method,
-        data: method !== 'GET' ? data : null,
-        params: method === 'GET' ? data : null,
-        timeout,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          ...headers
+      // 作為備選方案，使用 axios
+      // 注意：如果前面的 fetch 嘗試失敗，這裡仍會執行
+      try {
+        // 對於生產環境，簡化 axios 請求，移除可能引起 CORS 問題的標頭
+        const axiosConfig = {
+          url: `${baseUrl}${endpoint}`,
+          method,
+          timeout,
+          headers: {
+            'Content-Type': 'application/json',
+            ...safeHeaders
+          }
+        };
+        
+        // 根據請求方法添加適當的數據
+        if (method !== 'GET' && data) {
+          axiosConfig.data = data;
+        } else if (method === 'GET' && data) {
+          axiosConfig.params = data;
         }
-      });
-      
-      // 請求成功，更新當前環境設置
-      API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
-      
-      // 記錄成功日誌
-      if (successLogType) {
-        log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
+        
+        const response = await axios(axiosConfig);
+        
+        // 請求成功，更新當前環境設置
+        API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
+        
+        // 記錄成功日誌
+        if (successLogType) {
+          log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
+        }
+        
+        console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用 axios)`);
+        
+        return { 
+          success: true, 
+          data: response.data, 
+          env: baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL' 
+        };
+      } catch (error) {
+        lastError = error;
+        
+        // 輸出連接失敗信息
+        console.warn(`❌ 無法連接到 ${baseUrl} 環境: ${error.message}`);
+        
+        // 繼續嘗試下一個環境
+        continue;
       }
-      
-      console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用 axios)`);
-      
-      return { 
-        success: true, 
-        data: response.data, 
-        env: baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL' 
-      };
     } catch (error) {
       lastError = error;
       

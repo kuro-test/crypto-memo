@@ -207,7 +207,7 @@ function App() {
         if (process.env.NODE_ENV === 'development') {
           console.error("指數 API 調用失敗");
         }
-      });
+        });
     }
   }, [isLoggedIn]);
 
@@ -961,20 +961,70 @@ ${news.url}`;
     }
   };
 
-  // 獲取新聞數據
+  // 修改 fetchNews 函數，增強錯誤處理
   const fetchNews = async () => {
-    const result = await callApi({
-      endpoint: '/api/news',
-      method: 'GET',
-      timeout: 5000,
-      successLogType: LOG_TYPES.NEWS_SUCCESS,
-      errorLogType: LOG_TYPES.NEWS_ERROR
-    });
-    
-    if (result.success) {
-      setNews(result.data);
-    } else {
+    try {
+      // 先嘗試通過 callApi 函數獲取
+      const result = await callApi({
+        endpoint: '/api/news',
+        method: 'GET',
+        timeout: 10000, // 增加超時時間
+        successLogType: LOG_TYPES.NEWS_SUCCESS,
+        errorLogType: LOG_TYPES.NEWS_ERROR
+      });
+      
+      if (result.success && Array.isArray(result.data)) {
+        setNews(result.data);
+        return;
+      }
+      
+      // 如果 callApi 失敗，直接使用 axios 嘗試從各個環境獲取
+      const baseUrls = [
+        API_CONFIG.LOCAL,
+        API_CONFIG.PROD
+      ];
+      
+      for (const baseUrl of baseUrls) {
+        try {
+          console.log(`嘗試從 ${baseUrl}/api/news 獲取新聞數據...`);
+          const response = await axios.get(`${baseUrl}/api/news`, { 
+            timeout: 8000,
+            headers: { 'Cache-Control': 'no-cache' } // 防止緩存問題
+          });
+          
+          if (response.data && Array.isArray(response.data)) {
+            console.log(`成功從 ${baseUrl} 獲取新聞數據`);
+            setNews(response.data);
+            return;
+          }
+        } catch (innerError) {
+          console.warn(`從 ${baseUrl} 獲取新聞失敗:`, innerError.message);
+          continue;
+        }
+      }
+      
+      // 如果所有嘗試都失敗，使用備用數據
+      console.warn('所有獲取新聞嘗試都失敗，使用預設數據');
+      setNews([{
+        id: 1,
+        titleZh: "無法連接到新聞服務",
+        contentZh: "目前無法獲取最新新聞，請稍後再試。",
+        timeago: "剛才",
+        timestamp: Date.now()
+      }]);
+      
+    } catch (error) {
+      console.error('獲取新聞時發生錯誤:', error);
       setApiError("無法連接到新聞數據服務。請稍後再試。");
+      
+      // 設置備用數據
+      setNews([{
+        id: 1,
+        titleZh: "無法連接到新聞服務",
+        contentZh: "目前無法獲取最新新聞，請稍後再試。",
+        timeago: "剛才",
+        timestamp: Date.now()
+      }]);
     }
   };
 
@@ -1100,11 +1150,11 @@ ${news.url}`;
         >
           {/* 桌面版輸入區 - 垂直排列 */}
           <div className="hidden md:block">
-            <input
-              type="text"
-              placeholder="快速筆記"
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
+        <input
+          type="text"
+          placeholder="快速筆記"
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
               className="w-full p-2 rounded-md bg-gray-700 text-white mb-2"
             />
             <button
@@ -1124,15 +1174,15 @@ ${news.url}`;
               onChange={(e) => setMemo(e.target.value)}
               className="flex-1 p-2 rounded-l-md bg-gray-700 text-white"
             />
-            <button
+        <button
               type="submit"
               className="bg-yellow-500 px-3 py-2 rounded-r-md hover:bg-yellow-600 transition-colors flex-shrink-0 cursor-pointer"
-            >
-              新增
-            </button>
+        >
+          新增
+        </button>
           </div>
         </form>
-        
+
         {/* 筆記列表 */}
         <div className="overflow-y-auto flex-1">
           {memos.map((item, index) => (
@@ -1178,7 +1228,7 @@ ${news.url}`;
           ))}
         </div>
       </aside>
-      
+
       {/* 中間主內容區 */}
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         {!selectedNews ? (
@@ -1197,19 +1247,19 @@ ${news.url}`;
             ) : (
               <>
                 {news
-                  .filter((item) => item.id)
-                  .map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-gray-800 p-4 rounded-lg mb-4 cursor-pointer hover:bg-gray-700 transition-colors"
-                      onClick={() => handleNewsClick(item)}
-                    >
-                      <span className="text-sm text-gray-400">
-                        {item.timeago}
-                      </span>
-                      <h3 className="text-lg font-bold mt-1">{item.titleZh}</h3>
-                      <p className="text-gray-300 mt-2">{item.contentZh}</p>
-                    </div>
+                .filter((item) => item.id)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-gray-800 p-4 rounded-lg mb-4 cursor-pointer hover:bg-gray-700 transition-colors"
+                    onClick={() => handleNewsClick(item)}
+                  >
+                    <span className="text-sm text-gray-400">
+                      {item.timeago}
+                    </span>
+                    <h3 className="text-lg font-bold mt-1">{item.titleZh}</h3>
+                    <p className="text-gray-300 mt-2">{item.contentZh}</p>
+                  </div>
                   ))}
                 
                 {/* 添加"更多新聞"按鈕 */}
@@ -1245,9 +1295,9 @@ ${news.url}`;
           
           {/* 添加新數據按鈕 */}
           <AddNewDataButton />
-        </div>
+          </div>
       </aside>
-      
+
       {/* 模態窗 */}
       {isNoteModalOpen && <NoteModal />}
       {showDevelopingModal && <DevelopingModal />}

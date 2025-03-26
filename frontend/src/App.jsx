@@ -10,7 +10,7 @@ import {
 import GaugeChart from "./GaugeChart";
 import AltcoinIndex from "./AltcoinIndex";
 import { conditionalLog, conditionalError } from "./utils/logger";
-import { log, LOG_TYPES, getApiEndpoint, switchToProd, API_CONFIG } from "./utils/logger";
+import { log, LOG_TYPES, getApiEndpoint, switchToProd, API_CONFIG, callApi } from "./utils/logger";
 
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
@@ -217,42 +217,35 @@ function App() {
       return;
     }
     
-    try {
-      const response = await axios.post(`${getApiEndpoint()}/api/login`, {
-        id: account,
-        password: password
-      }, { 
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 5000 
-      });
+    const result = await callApi({
+      endpoint: '/api/login',
+      method: 'POST',
+      data: { id: account, password: password },
+      successLogType: LOG_TYPES.LOGIN_SUCCESS,
+      errorLogType: LOG_TYPES.LOGIN_ERROR
+    });
+    
+    if (result.success) {
+      const { id, control, note } = result.data;
       
-      const { success, id, control, note } = response.data;
+      setIsLoggedIn(true);
+      setUserId(id);
+      setIsAdmin(control === "true");
       
-      if (success) {
-        setIsLoggedIn(true);
-        setUserId(id);
-        setIsAdmin(control === "true");
-        
-        if (note && Array.isArray(note)) {
-          setMemos(note);
-        }
-        
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userId', id);
-        localStorage.setItem('isAdmin', control === "true");
-        if (note && Array.isArray(note)) {
-          localStorage.setItem('memos', JSON.stringify(note));
-        }
-        
-        log(LOG_TYPES.API_SUCCESS, getApiEndpoint());
-        log(LOG_TYPES.LOGIN_SUCCESS, `${id}, 管理員權限: ${control}`);
-        return;
+      if (note && Array.isArray(note)) {
+        setMemos(note);
       }
-    } catch (error) {
-      if (!API_CONFIG.isUsingProd) {
-        switchToProd();
-        return handleLogin(); // 重試一次
+      
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userId', id);
+      localStorage.setItem('isAdmin', control === "true");
+      if (note && Array.isArray(note)) {
+        localStorage.setItem('memos', JSON.stringify(note));
       }
+      
+      log(LOG_TYPES.API_SUCCESS, result.env);
+      log(LOG_TYPES.LOGIN_SUCCESS, `${id}, 管理員權限: ${control}`);
+    } else {
       setLoginError("無法連接到伺服器，請稍後再試");
     }
   };
@@ -824,95 +817,42 @@ ${news.url}`;
     );
   };
 
-  // 修改筆記同步相關邏輯
-
-  // 1. 改進筆記同步函數，增加錯誤重試和日誌
+  // 同步筆記
   const syncNotesToServer = async (forcedSync = false) => {
     if (!isLoggedIn || !userId) return false;
     if (memos.length === 0 && !forcedSync) return false;
     
     setIsSyncing(true);
-    const baseUrls = [
-      'http://localhost:3000',
-      'https://crypto-memo-production.up.railway.app'
-    ];
     
-    for (const baseUrl of baseUrls) {
-      try {
-        const response = await axios.post(`${baseUrl}/api/notes/save`, {
-          userId: userId,
-          notes: memos
-        }, { 
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 5000 
-        });
-        
-        if (response.data.success) {
-          log(LOG_TYPES.NOTES_SYNC_SUCCESS);
-          setIsSyncing(false);
-          return true;
-        }
-      } catch (error) {
-        continue;
-      }
-    }
+    const result = await callApi({
+      endpoint: '/api/notes/save',
+      method: 'POST',
+      data: { userId, notes: memos },
+      timeout: 5000,
+      successLogType: LOG_TYPES.NOTES_SYNC_SUCCESS,
+      errorLogType: LOG_TYPES.NOTES_SYNC_ERROR
+    });
     
-    log(LOG_TYPES.NOTES_SYNC_ERROR);
     setIsSyncing(false);
-    return false;
+    return result.success;
   };
 
-  // 2. 在處理筆記變更時同步
-  useEffect(() => {
-    // 只有在登入後且有筆記變動時才同步
-    if (isLoggedIn && userId && memos.length > 0) {
-      // 使用防抖，減少頻繁 API 調用
-      const timer = setTimeout(() => {
-        syncNotesToServer();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
+  // 獲取新聞數據
+  const fetchNews = async () => {
+    const result = await callApi({
+      endpoint: '/api/news',
+      method: 'GET',
+      timeout: 5000,
+      successLogType: LOG_TYPES.NEWS_SUCCESS,
+      errorLogType: LOG_TYPES.NEWS_ERROR
+    });
+    
+    if (result.success) {
+      setNews(result.data);
+    } else {
+      setApiError("無法連接到新聞數據服務。請稍後再試。");
     }
-  }, [memos, isLoggedIn, userId]);
-
-  // 3. 在登出前同步資料
-  const handleLogout = () => {
-    // 清除 localStorage
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem('memos');
-    
-    // 重置狀態
-    setIsLoggedIn(false);
-    setUserId("");
-    setIsAdmin(false);
-    setMemos([]);
-    setAccount("");
-    setPassword("");
-
-    console.log("已成功登出");
   };
-
-  // 將登出函數暴露到全局範圍
-  useEffect(() => {
-    // 將登出函數掛載到 window 對象上
-    window.logout = handleLogout;
-    
-    // 組件卸載時移除全局函數
-    return () => {
-      window.logout = undefined;
-    };
-  }, []);
-
-  // 在組件卸載時清理 timeout
-  useEffect(() => {
-    return () => {
-      if (slidingTimeoutRef.current) {
-        clearTimeout(slidingTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // 修改登入表單部分為響應式並顯示錯誤訊息
   if (!isLoggedIn) {

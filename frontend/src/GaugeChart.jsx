@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ArcElement, Chart as ChartJS, Tooltip } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
 import axios from "axios";
-import { log, LOG_TYPES, getApiEndpoint, switchToProd } from "./utils/logger";
+import { log, LOG_TYPES, getApiEndpoint, switchToProd, callApi } from "./utils/logger";
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -48,58 +48,34 @@ const GaugeChart = ({ onAddToNote }) => {
 
   useEffect(() => {
     const fetchFearAndGreedIndex = async () => {
-      // 首先嘗試本地端點，然後嘗試生產端點
-      const baseUrls = [
-        'http://localhost:3000',
-        'https://crypto-memo-production.up.railway.app'
-      ];
+      const result = await callApi({
+        endpoint: '/api/index',
+        method: 'GET',
+        timeout: 8000,
+        successLogType: LOG_TYPES.FEAR_GREED_SUCCESS,
+        errorLogType: LOG_TYPES.FEAR_GREED_ERROR
+      });
       
-      let lastError = null;
-      
-      for (const baseUrl of baseUrls) {
-        try {
-          console.log(`嘗試從 ${baseUrl}/api/index 獲取恐懼貪婪指數...`);
-          
-          // 移除自訂標頭以解決 CORS 問題
-          const response = await axios.get(`${baseUrl}/api/index`, { 
-            timeout: 8000  // 只保留超時設定，移除其他標頭
-          });
-          
-          console.log(`從 ${baseUrl} 獲取的響應:`, response.data);
-          
-          if (Array.isArray(response.data)) {
-            const fearGreedData = response.data.find(item => item.id === "fear&greed");
-            
-            if (fearGreedData && fearGreedData.data) {
-              const data = fearGreedData.data;
-              // 確保 value 被轉換為數字
-              const value = parseInt(data.value) || 50;
-              setIndexValue(value);
-              setLabel(data.value_classification || "中性");
-              setTimestamp(data.timestamp || Math.floor(Date.now() / 1000).toString()); 
-              log(LOG_TYPES.FEAR_GREED_SUCCESS);
-              console.log(`成功從 ${baseUrl} 獲取恐懼貪婪指數: ${value} - ${data.value_classification}`);
-              return; // 成功獲取數據後退出
-            } else {
-              console.warn(`從 ${baseUrl} 獲取的數據無效或缺少 fear&greed 項目`, response.data);
-            }
-          } else {
-            console.warn(`從 ${baseUrl} 獲取的響應不是數組格式`, response.data);
-          }
-        } catch (error) {
-          lastError = error;
-          console.error(`無法從 ${baseUrl} 獲取恐懼貪婪指數:`, error.message);
-          // 繼續嘗試下一個端點
+      if (result.success && Array.isArray(result.data)) {
+        const fearGreedData = result.data.find(item => item.id === "fear&greed");
+        
+        if (fearGreedData && fearGreedData.data) {
+          const data = fearGreedData.data;
+          // 確保 value 被轉換為數字
+          const value = parseInt(data.value) || 50;
+          setIndexValue(value);
+          setLabel(data.value_classification || "中性");
+          setTimestamp(data.timestamp || Math.floor(Date.now() / 1000).toString()); 
+          console.log(`成功從 ${result.env} 環境獲取恐懼貪婪指數: ${value} - ${data.value_classification}`);
+          return;
         }
+      } else {
+        console.warn(`無法獲取恐懼貪婪指數資料，使用默認值`);
+        setIndexValue(50);
+        setLabel("中性");
+        setTimestamp(Math.floor(Date.now() / 1000).toString());
+        setError(`無法獲取恐懼貪婪指數資料: ${result.error || '未知錯誤'}`);
       }
-      
-      // 如果所有嘗試都失敗，使用默認值
-      console.warn(`所有 API 端點嘗試失敗，使用默認恐懼貪婪指數值`);
-      setIndexValue(50);
-      setLabel("中性");
-      setTimestamp(Math.floor(Date.now() / 1000).toString());
-      log(LOG_TYPES.FEAR_GREED_ERROR);
-      setError(`無法獲取恐懼貪婪指數資料: ${lastError?.message || '未知錯誤'}`);
     };
 
     fetchFearAndGreedIndex();

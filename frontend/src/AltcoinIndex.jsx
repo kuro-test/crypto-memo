@@ -3,6 +3,7 @@ import { ArcElement, Chart as ChartJS, Tooltip } from "chart.js";
 import axios from "axios";
 import { conditionalLog, conditionalError } from "./utils/logger";
 import { log, LOG_TYPES } from "./utils/logger";
+import { callApi } from "./utils/logger";
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -76,31 +77,27 @@ const AltcoinIndex = ({ onAddToNote }) => {
 
   useEffect(() => {
     const fetchAltcoinIndex = async () => {
-      const baseUrls = [
-        'http://localhost:3000',
-        'https://crypto-memo-production.up.railway.app'
-      ];
+      const result = await callApi({
+        endpoint: '/api/index',
+        method: 'GET',
+        timeout: 5000,
+        successLogType: LOG_TYPES.ALTCOIN_SUCCESS,
+        errorLogType: LOG_TYPES.ALTCOIN_ERROR
+      });
       
-      for (const baseUrl of baseUrls) {
-        try {
-          const response = await axios.get(`${baseUrl}/api/index`, { timeout: 5000 });
-          const altcoinData = response.data.find(item => item.id === "altcoin-index");
-          
-          if (altcoinData && altcoinData.data) {
-            const data = altcoinData.data;
-            setIndexValue(parseInt(data.value));
-            setStatus(translateText[data.status] || data.status);
-            setTitle(translateText[data.title] || data.title);
-            setTimestamp(data.timestamp); // 保存時間戳
-            log(LOG_TYPES.ALTCOIN_SUCCESS);
-            return;
-          }
-        } catch (error) {
-          continue;
+      if (result.success && Array.isArray(result.data)) {
+        const altcoinData = result.data.find(item => item.id === "altcoin-index");
+        
+        if (altcoinData && altcoinData.data) {
+          const data = altcoinData.data;
+          setIndexValue(parseInt(data.value));
+          setStatus(translateText[data.status] || data.status);
+          setTitle(translateText[data.title] || data.title);
+          setTimestamp(data.timestamp);
+          return;
         }
       }
       
-      log(LOG_TYPES.ALTCOIN_ERROR);
       setError("無法獲取山寨幣月份指數資料");
     };
 

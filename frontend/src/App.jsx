@@ -73,6 +73,8 @@ function App() {
   const [showDevelopingModal, setShowDevelopingModal] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSliding, setIsSliding] = useState(false);
+  const slidingTimeoutRef = useRef(null);
 
   // 當登入狀態改變時，更新 localStorage
   useEffect(() => {
@@ -561,6 +563,7 @@ ${news.url}`;
 
   const handleTouchStart = (e, index) => {
     touchStartX.current = e.touches[0].clientX;
+    setIsSliding(true);
   };
 
   const handleTouchMove = (e, index) => {
@@ -585,6 +588,7 @@ ${news.url}`;
 
   const handleMouseDown = (e, index) => {
     touchStartX.current = e.clientX;
+    setIsSliding(true);
   };
 
   const handleMouseMove = (e, index) => {
@@ -608,7 +612,29 @@ ${news.url}`;
   };
 
   const handleMouseUp = (index) => {
+    if (!touchStartX.current) return;
+
+    const position = slidePosition[index] || 0;
+    if (position > 30) {
+      setSlidePosition((prev) => ({
+        ...prev,
+        [index]: 60,
+      }));
+    } else {
+      setSlidePosition((prev) => ({
+        ...prev,
+        [index]: 0,
+      }));
+    }
     touchStartX.current = null;
+    
+    // 設置一個短暫的延遲，防止滑動結束後立即觸發點擊
+    if (slidingTimeoutRef.current) {
+      clearTimeout(slidingTimeoutRef.current);
+    }
+    slidingTimeoutRef.current = setTimeout(() => {
+      setIsSliding(false);
+    }, 100);
   };
 
   const handleTouchEnd = (index) => {
@@ -627,6 +653,14 @@ ${news.url}`;
       }));
     }
     touchStartX.current = null;
+    
+    // 設置一個短暫的延遲，防止滑動結束後立即觸發點擊
+    if (slidingTimeoutRef.current) {
+      clearTimeout(slidingTimeoutRef.current);
+    }
+    slidingTimeoutRef.current = setTimeout(() => {
+      setIsSliding(false);
+    }, 100);
   };
 
   // 在 App 函數內新增處理 Enter 鍵的函數
@@ -868,6 +902,15 @@ ${news.url}`;
     };
   }, []);
 
+  // 在組件卸載時清理 timeout
+  useEffect(() => {
+    return () => {
+      if (slidingTimeoutRef.current) {
+        clearTimeout(slidingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // 修改登入表單部分為響應式並顯示錯誤訊息
   if (!isLoggedIn) {
     return (
@@ -976,7 +1019,7 @@ ${news.url}`;
               onMouseLeave={() => handleMouseUp(index)}
               onClick={(e) => {
                 // 只有當沒有滑動時才觸發點擊事件
-                if (!slidePosition[index]) {
+                if (!slidePosition[index] && !isSliding) {
                   handleMemoClick(item);
                 }
               }}

@@ -1,15 +1,50 @@
 [
   {
-    "timestamp": 1742956785748
+    "timestamp": 1742960760778
   },
   {
     "id": 1,
-    "title": "Welcome to Crypto Memo",
-    "titleZh": "歡迎使用 Crypto Memo",
-    "content": "Please use the scraper to fetch the latest crypto news.",
-    "contentZh": "請使用爬蟲功能獲取最新的加密貨幣新聞。",
-    "timeago": "Just now",
-    "summaryZh": "這是一個預設的歡迎消息。請使用爬蟲功能來獲取真實的新聞數據。",
-    "detailZh": "Crypto Memo 是一個加密貨幣新聞和指數跟踪工具。\n\n您可以爬取最新的加密貨幣新聞並將它們翻譯成中文。此外，您還可以跟踪比特幣恐懼與貪婪指數以及山寨幣月份指數。\n\n使用左側的筆記功能來保存重要信息。"
+    "url": "https://www.coindesk.com//business/2025/03/25/crypto-prime-broker-falconx-suffers-staff-exodus-including-european-and-compliance-chiefs",
+    "categories": "Finance",
+    "title": "FalconX Said to Have Suffered Wave of Senior Staff Departures, Including General Counsel, European Head",
+    "content": "A total of 10-15 people have left the business recently, two sources said.",
+    "timeago": "3 hours ago",
+    "time": "Mar 26, 2025, 12:01 a.m.  UTC",
+    "author": "By Will Canny|Edited by Stephen Alpher, Aoyon Ashraf",
+    "contentDetail": "Crypto prime broker FalconX has seen the departure of several senior staff recently, according to three people with knowledge of the matter.\nAmong those resigning was Tommy Doyle, FalconX's European head, according to the sources.\nThe global chief compliance officer, general counsel, and head of credit at FalconX have also resigned, the sources said, who spoke on condition of anonymity as the matter is private. Two traders also exited the business, the people added.\nTwo of the people said the total number of departures was a combination of resignations and firings, and numbered between 10 and 15 people.\n\"Our headcount approximately doubled last year and we continue to grow. We do not comment on personnel matters,\" a FalconX spokesperson said in an emailed comments.\nDoyle declined to comment.\nPrime brokers are essential to financial markets. They provide trading, financing and custody services to large institutions.\nBefore this wave of exits, Brian Strugats, head of trading at FalconX, had recently left the business, as reported by CoinDesk. He had worked for the firm for more than three years and was based in New York.\nFalconX describes itself as the largest, most reliable digital assets prime brokerage for the world's leading institutions. The company employed 243 people as of February 2023 according to PitchBook data.\nThe crypto firm was founded in 2018 and was valued at $8 billion at the time of a mid-2022 funding round.\nRead more: Binance, FalconX and the Curious Case of 1.35M Missing Solana Tokens\n",
+    "titleZh": "據傳 FalconX 經歷高層人事異動潮，包括總法律顧問、歐洲區主管等離職。",
+    "contentZh": "據兩位消息人士稱，最近共有 10-15 人離開了公司。",
+    "detailZh": "據三位知情人士透露，加密貨幣主要經紀商 FalconX 近期有多位資深員工離職。\n\n消息人士稱，離職者包括 FalconX 的歐洲主管 Tommy Doyle。\n\n消息人士還表示，FalconX 的全球合規主管、總法律顧問和信貸主管也已辭職。這些消息人士因事屬私密而不願透露姓名。知情人士補充說，還有兩名交易員也已離開公司。\n\n其中兩人表示，離職總人數是辭職和解僱的混合，人數在 10 到 15 人之間。\n\nFalconX 發言人在電子郵件評論中表示：「我們去年員工總數大約翻了一番，並且我們將繼續增長。我們不評論人事問題。」\n\nDoyle 拒絕置評。\n\n主要經紀商對金融市場至關重要。他們為大型機構提供交易、融資和託管服務。\n\n正如 CoinDesk 報導，在這波離職潮之前，FalconX 的交易主管 Brian Strugats 最近也已離開公司。他已為該公司工作三年多，常駐紐約。\n\nFalconX 將自己描述為全球領先機構最大、最可靠的數位資產主要經紀商。根據 PitchBook 的數據，截至 2023 年 2 月，該公司擁有 243 名員工。\n\n這家加密貨幣公司成立於 2018 年，在 2022 年中的一輪融資中估值為 80 億美元。\n\n閱讀更多：幣安、FalconX 和 135 萬個失蹤 Solana 代幣的奇特案例",
+    "summaryZh": "總結：\n\n加密貨幣主要經紀商 FalconX 近期出現資深員工離職潮。\n消息人士透露，包括歐洲主管 Tommy Doyle、全球合規主管、總法律顧問和信貸主管等多位高層已離職或被解僱，總人數估計在 10 到 15 人之間，還有兩名交易員也離開了公司。\n此前，FalconX 的交易主管 Brian Strugats 也已離職。\n\n\nFalconX 對此回應表示，公司去年員工總數翻了一番，並將持續增長，但不對人事問題發表評論。\n\n\n作為大型機構提供交易、融資和託管服務的主要經紀商，FalconX 的人員變動引人關注。\n這家成立於 2018 年的公司，在 2022 年中的一輪融資中估值曾高達 80 億美元。\n目前離職原因不明，但可能與加密貨幣市場的波動或公司內部策略調整有關。\n\n"
+  },
+  {
+    "id": 2,
+    "url": "https://www.coindesk.com//business/2025/03/25/now-is-really-good-time-to-buy-bitcoin-says-trillion-dollar-investment-manager",
+    "categories": "Finance",
+    "title": "Now Is 'Really Good Time' to Buy Bitcoin, Says Trillion Dollar Investment Manager",
+    "content": "Global investment firm T. Rowe Price’s global technology portfolio manager, Dominic Rizzo, spoke at the Exchange conference in Las Vegas on Tuesday.",
+    "timeago": "4 hours ago",
+    "time": "Mar 25, 2025, 11:30 p.m.  UTC",
+    "author": "By Helene Braun|Edited by Aoyon Ashraf",
+    "contentDetail": "In a conversation at the Exchange conference in Las Vegas, which has brought together about 2,000 investment advisors and asset managers, Dominic Rizzo, global technology portfolio manager at R. Rowe Price—the firm that handles over $1 trillion in assets—said that now is a good time to have exposure to bitcoin.\nHe likened the price of bitcoin to a commodity and how investors should think about investing in it. “Bitcoin itself has traded very close to its average cost of mine. So if you think about it like a traditional commodity, that's actually historically a really good time to have exposure to it when it's close to its cost of mine,” he said.\nIn traditional commodity investing, when the cost of mining or extracting a commodity is close to the spot price, it often signals that the commodity's price might have found the floor or has a limited downside. This is something contrarian investors look for when investing in commodities, as the bearish sentiment could be priced in when such an event occurs. Rizzo seems to be alluding to such a dynamic in play for bitcoin as well if one compares commodity cycles to bitcoin price.\nAccording to MacroMicro blog, the current average price of mining bitcoin is around $84,770, while the spot price is hovering near $87,000.\nRizzo also said that he sees blockchain and digital payments as an integral part of fintech and artificial intelligence (AI).\n“The world is getting more global, we're moving from cash to digital payments … so, I think digital payments is really at the nexus of moving money cheaply and taking a software-driven approach to areas that have historically been not software-driven,” according to Rizzo.\nHe said part of this movement is blockchain, which he believes every investor should have some exposure to, whether through holding stocks of companies like Coinbase (COIN) or Robinhood (HOOD) or those of crypto miners profiting from the evolution of AI.\n",
+    "titleZh": "萬億美元級投資經理表示現在是「買入比特幣的絕佳時機」",
+    "contentZh": "全球投資公司普徠仕 (T. Rowe Price) 的全球科技投資組合經理人 Dominic Rizzo，週二在拉斯維加斯舉行的 Exchange 會議上發表了演講。",
+    "detailZh": "在拉斯維加斯舉行的Exchange會議上，匯集了約2,000名投資顧問和資產管理公司代表。T. Rowe Price全球科技投資組合經理Dominic Rizzo表示，現在是配置比特幣的好時機。T. Rowe Price是管理超過1兆美元資產的公司。\n\n他將比特幣的價格比作一種商品，並說明投資者應該如何考慮投資它。「比特幣本身的交易價格非常接近其平均挖礦成本。所以如果你把它想像成一種傳統商品，當它的價格接近挖礦成本時，從歷史上看，實際上是配置它的絕佳時機，」他說。\n\n在傳統商品投資中，當商品的採礦或提取成本接近現貨價格時，這通常表示該商品的價格可能已經觸底或下行空間有限。這是逆向投資者在投資商品時所尋找的，因為當這種情況發生時，看跌情緒可能已被反映在價格中。Rizzo似乎也在暗示比特幣也存在這種動態，如果將商品週期與比特幣價格進行比較的話。\n\n根據MacroMicro博客的數據，目前比特幣的平均挖礦成本約為84,770美元，而現貨價格則在87,000美元附近徘徊。\n\nRizzo還表示，他認為區塊鏈和數位支付是金融科技和人工智慧（AI）不可或缺的一部分。\n\n「世界變得越來越全球化，我們正在從現金轉向數位支付……所以，我認為數位支付確實處於以低廉的成本轉移資金，以及採用軟體驅動的方法來處理歷史上非軟體驅動領域的中心位置，」Rizzo表示。\n\n他說，這種趨勢的一部分是區塊鏈，他認為每位投資者都應該有所配置，無論是透過持有Coinbase（COIN）或Robinhood（HOOD）等公司的股票，還是透過持有從人工智慧發展中獲利的加密貨幣礦工公司的股票。",
+    "summaryZh": "在拉斯維加斯Exchange會議上，T. Rowe Price全球科技投資組合經理Dominic Rizzo建議投資者配置比特幣。\n他將比特幣比作商品，認為當其價格接近挖礦成本時（目前比特幣挖礦成本約84,770美元，價格在87,000美元附近），是絕佳的配置時機，暗示價格可能已觸底。\n\n\nRizzo強調區塊鏈和數位支付是金融科技和人工智慧的重要組成部分，並看好數位支付的未來，認為它能以低廉成本轉移資金，並採用軟體驅動方法處理傳統領域。\n\n\n他建議每位投資者都應配置區塊鏈相關資產，可以透過持有Coinbase或Robinhood等股票，或是投資從人工智慧發展中獲利的加密貨幣礦工公司。\n總而言之，Rizzo認為現在是投資比特幣及相關區塊鏈產業的好時機。\n\n"
+  },
+  {
+    "id": 3,
+    "url": "https://www.coindesk.com//policy/2025/03/25/sec-s-crypto-task-force-will-host-4-more-industry-roundtables",
+    "categories": "Policy",
+    "title": "SEC’s Crypto Task Force Will Host 4 More Industry Roundtables",
+    "content": "The roundtable discussions will include conversations on tokenization, DeFi and crypto custody.",
+    "timeago": "4 hours ago",
+    "time": "Mar 25, 2025, 10:50 p.m.  UTC",
+    "author": "By Cheyenne Ligon|Edited by Nikhilesh De",
+    "contentDetail": "The U.S. Securities and Exchange Commission’s (SEC) Crypto Task Force will host four more roundtable discussions with the industry this spring, on topics ranging from tokenization to decentralized finance (DeFi).\n\nThe Crypto Task Force’s first roundtable discussion — the kick-off to what Commissioner Hester Peirce, the task force’s leader, has dubbed the SEC’s “Spring Sprint Toward Crypto Clarity” — was held in Washington, D.C., last Friday. A dozen industry lawyers spoke about issues related to the security status of tokens.\n\nRead more: SEC ‘Earnest’ About Finding Workable Crypto Policy, Commissioners Say at Roundtable\n\n“The Crypto Task Force roundtables are an opportunity for us to hear a lively discussion among experts about what the regulatory issues are and what the Commission can do to solve them,” Peirce said in a Tuesday announcement.\n\nThe roundtable discussions are just one example of the SEC’s radical overhaul of its approach to crypto regulation. As the agency moves away from the so-called “regulation by enforcement” practiced by former Chair Gary Gensler, its new leadership — including Pierce and Acting Chair Mark Uyeda — have signaled a desire to improve their working relationship with the crypto industry and provide clearer regulatory guidelines to industry participants.\n\nThe next roundtable discussion in the series, “Between a Block and a Hard Place: Tailoring Regulation for Crypto Trading” is slated for April 11. The following discussions will cover topics including crypto custody (April 25), tokenization (May 12), and decentralized finance (June 6). Each of the roundtable discussions will take place in Washington, D.C., and will also be livestreamed.\n",
+    "titleZh": "美國證券交易委員會加密貨幣專責小組將舉辦另外四場產業圓桌會議",
+    "contentZh": "圓桌討論會將包含關於代幣化、去中心化金融（DeFi）和加密貨幣託管的對話。",
+    "detailZh": "美國證券交易委員會（SEC）加密貨幣專案小組將於今年春季再舉辦四場與業界的圓桌會議，主題涵蓋代幣化和去中心化金融（DeFi）。\n\n加密貨幣專案小組的首場圓桌會議——由專案小組領導人海絲特·皮爾斯（Hester Peirce）委員稱之為SEC的“加密貨幣清晰化春季衝刺”的開端——已於上週五在華盛頓特區舉行。十幾位業界律師討論了與代幣安全地位相關的問題。\n\n閱讀更多：SEC委員在圓桌會議上表示，正在“認真”尋找可行的加密貨幣政策\n\n皮爾斯在週二的公告中表示：“加密貨幣專案小組圓桌會議為我們提供了一個機會，讓我們可以聽到專家們就監管問題以及委員會可以做些什麼來解決這些問題進行熱烈的討論。”\n\n圓桌會議僅是SEC徹底改革其加密貨幣監管方式的一個例子。隨著該機構不再採用前任主席蓋瑞·詹斯勒（Gary Gensler）所奉行的所謂“執法式監管”，包括皮爾斯和代理主席馬克·宇田（Mark Uyeda）在內的新領導層已表明，他們渴望改善與加密貨幣行業的工作關係，並為行業參與者提供更清晰的監管指南。\n\n該系列下一場圓桌會議“區塊與困境之間：為加密貨幣交易量身定制監管”定於4月11日舉行。後續的討論將涵蓋包括加密貨幣託管（4月25日）、代幣化（5月12日）和去中心化金融（6月6日）等主題。每場圓桌會議都將在華盛頓特區舉行，並將進行直播。",
+    "summaryZh": "美國證券交易委員會 (SEC) 加密貨幣專案小組今年春季將舉辦四場圓桌會議，旨在加強與加密貨幣產業的互動，並提供更清晰的監管指南。\n這些會議將聚焦代幣化和去中心化金融 (DeFi) 等關鍵議題。\n\n\n首場會議已於上週五舉行，重點討論代幣的安全性問題。\nSEC 委員 Hester Peirce 表示，這些圓桌會議是 SEC \"加密貨幣清晰化春季衝刺\" 的開端，希望能聽取專家意見，解決監管問題。\n\n\n後續圓桌會議主題包括：4月11日 “區塊與困境之間：為加密貨幣交易量身定制監管”、4月25日加密貨幣託管、5月12日代幣化以及6月6日去中心化金融。\n所有會議將在華盛頓特區舉行並直播。\n\n\n這顯示 SEC 新領導層正積極尋求與加密貨幣行業建立更良好的合作關係，不再像前主席般採取 \"執法式監管\"，而是致力於提供更明確的監管框架。\n\n"
   }
 ]

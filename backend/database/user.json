@@ -5,6 +5,11 @@
     "control": "true",
     "note": [
       {
+        "title": "55555",
+        "content": "",
+        "timestamp": 1742969418905
+      },
+      {
         "timestamp": 1633932800000,
         "title": "歡迎使用 Crypto Memo",
         "content": "這是一個預設的歡迎筆記。您可以添加自己的筆記，它們會顯示在這裡。"

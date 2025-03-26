@@ -203,6 +203,114 @@ export function clearLoggedMessages() {
   loggedMessages.clear();
 }
 
+// 同步筆記到服務器
+export async function syncNotesToServer(forcedSync = false) {
+  console.log('開始嘗試同步筆記到服務器...');
+  
+  try {
+    // 從本地存儲獲取用戶 ID 和筆記
+    const userId = localStorage.getItem('userId');
+    const notesString = localStorage.getItem('memos');
+    
+    if (!userId) {
+      console.warn('無法同步筆記：找不到用戶ID');
+      return false;
+    }
+    
+    if (!notesString) {
+      console.warn('無法同步筆記：找不到筆記數據');
+      return false;
+    }
+    
+    // 解析筆記數據
+    let notes;
+    try {
+      notes = JSON.parse(notesString);
+      console.log(`準備同步 ${notes.length} 條筆記`);
+    } catch (parseError) {
+      console.error('解析筆記數據失敗:', parseError);
+      return false;
+    }
+    
+    // 使用 callApi 函數發送請求
+    const result = await callApi({
+      endpoint: '/api/notes/save',
+      method: 'POST',
+      data: { userId, notes },
+      timeout: 8000,
+      successLogType: LOG_TYPES.NOTES_SYNC_SUCCESS,
+      errorLogType: LOG_TYPES.NOTES_SYNC_ERROR,
+      tryBothEnvs: true
+    });
+    
+    if (result.success) {
+      console.log(`✅ 筆記同步成功! 環境: ${result.env}`);
+      return true;
+    } else {
+      console.error(`❌ 筆記同步失敗: ${result.error}`);
+      return false;
+    }
+  } catch (error) {
+    console.error('同步筆記時發生錯誤:', error);
+    return false;
+  }
+}
+
+// 修改登出函數，在登出前同步筆記
+export async function logout() {
+  try {
+    console.log('正在登出，嘗試先同步筆記...');
+    
+    // 嘗試同步筆記到服務器
+    await syncNotesToServer(true);
+    
+    // 等待一小段時間確保同步完成
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // 清除本地儲存的用戶數據
+    localStorage.removeItem('userData');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userNotes'); // 舊的 key
+    localStorage.removeItem('memos');     // 新的 key
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('isAdmin');
+    
+    // 清除其他可能存在的應用程式狀態
+    sessionStorage.clear();
+    
+    // 記錄登出動作
+    console.log('✅ 用戶已成功登出，筆記已同步');
+    
+    // 將網址設為根路徑，回到登入頁面
+    window.location.href = '/';
+    
+    return true;
+  } catch (error) {
+    console.error('❌ 登出過程中發生錯誤:', error);
+    
+    // 即使同步失敗，仍然嘗試登出
+    localStorage.removeItem('userData');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userNotes');
+    localStorage.removeItem('memos');
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('isAdmin');
+    sessionStorage.clear();
+    window.location.href = '/';
+    
+    return false;
+  }
+}
+
+// 修改 autoSyncNotes 函數，使用正確的 localStorage key
+export async function autoSyncNotes() {
+  // 使用正確的 key
+  if (localStorage.getItem('memos')) {
+    return await syncNotesToServer(false);
+  }
+  return false;
+}
+
 // 為了保持向後兼容性，保留舊函數但指向新函數
 export const getApiEndpoint = () => API_CONFIG.getBaseUrl();
 export const switchToProd = () => API_CONFIG.switchToProd();
@@ -218,4 +326,9 @@ if (typeof window !== 'undefined') {
   window.useProd = () => API_CONFIG.switchToProd();
   window.toggleEnv = () => API_CONFIG.toggleEnv();
   window.preferLocal = (value) => API_CONFIG.setPreferLocal(value);
+  
+  // 添加登出和同步筆記功能到全局範圍
+  window.logout = logout;
+  window.syncNotes = () => syncNotesToServer(true);
+  window.autoSyncNotes = autoSyncNotes;
 } 

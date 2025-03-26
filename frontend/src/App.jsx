@@ -76,6 +76,7 @@ function App() {
   const [isSliding, setIsSliding] = useState(false);
   const slidingTimeoutRef = useRef(null);
   const [hasMoved, setHasMoved] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
 
   // 當登入狀態改變時，更新 localStorage
   useEffect(() => {
@@ -233,7 +234,8 @@ function App() {
       setIsAdmin(control === "true");
       
       if (note && Array.isArray(note)) {
-        setMemos(note);
+        const sortedNotes = [...note].sort((a, b) => b.timestamp - a.timestamp);
+        setMemos(sortedNotes);
       }
       
       localStorage.setItem('isLoggedIn', 'true');
@@ -255,14 +257,22 @@ function App() {
       // 從筆記視窗新增
       if (noteTitle.trim() || memo.trim()) {
         const newMemo = {
-          title: noteTitle.trim() || memo.trim(), // 如果沒有標題就用內容當標題
+          title: noteTitle.trim() || memo.trim(),
           content: memo.trim(),
           timestamp: Date.now(),
         };
-        setMemos([newMemo, ...memos]);
+        
+        // 更新狀態和本地存儲
+        const updatedMemos = [newMemo, ...memos];
+        setMemos(updatedMemos);
+        localStorage.setItem('memos', JSON.stringify(updatedMemos));
+        
         setNoteTitle("");
         setMemo("");
         setIsNoteModalOpen(false);
+        
+        // 觸發同步
+        syncNotesToServer(true);
       }
     } else {
       // 快速筆記
@@ -272,20 +282,27 @@ function App() {
           content: "",
           timestamp: Date.now(),
         };
-        setMemos([newMemo, ...memos]);
+        
+        // 更新狀態和本地存儲
+        const updatedMemos = [newMemo, ...memos];
+        setMemos(updatedMemos);
+        localStorage.setItem('memos', JSON.stringify(updatedMemos));
+        
         setMemo("");
+        
+        // 觸發同步
+        syncNotesToServer(true);
       } else {
         setIsNoteModalOpen(true);
       }
     }
-    
-    // 觸發立即同步
-    setTimeout(() => syncNotesToServer(), 300);
   };
 
   const handleDeleteMemo = (indexToDelete) => {
     // 刪除備忘錄
-    setMemos(memos.filter((_, index) => index !== indexToDelete));
+    const updatedMemos = memos.filter((_, index) => index !== indexToDelete);
+    setMemos(updatedMemos);
+    localStorage.setItem('memos', JSON.stringify(updatedMemos));
 
     // 清除對應的滑動位置狀態
     setSlidePosition((prev) => {
@@ -304,8 +321,8 @@ function App() {
       return updated;
     });
     
-    // 觸發立即同步
-    setTimeout(() => syncNotesToServer(), 300);
+    // 觸發同步
+    syncNotesToServer(true);
   };
 
   // 新增處理新聞點擊的函數
@@ -697,13 +714,18 @@ ${news.url}`;
           content: localContent.trim(),
           timestamp: Date.now(),
         };
-        setMemos([newMemo, ...memos]);
+        
+        // 更新狀態和本地存儲
+        const updatedMemos = [newMemo, ...memos];
+        setMemos(updatedMemos);
+        localStorage.setItem('memos', JSON.stringify(updatedMemos));
+        
         setIsNoteModalOpen(false);
         setEditingTitle("");
         setEditingContent("");
         
-        // 觸發立即同步
-        setTimeout(() => syncNotesToServer(), 300);
+        // 觸發同步
+        syncNotesToServer(true);
       }
     };
 
@@ -817,24 +839,126 @@ ${news.url}`;
     );
   };
 
-  // 同步筆記
+  // 添加同步函數來解決重新整理問題
+  const handleSyncAndReload = async () => {
+    // 先進行同步
+    const success = await syncNotesToServer(true);
+    
+    // 無論同步成功與否，確保筆記已保存至 localStorage
+    localStorage.setItem('memos', JSON.stringify(memos));
+    
+    // 設置一個快速恢復的標誌
+    sessionStorage.setItem('quickRestore', 'true');
+    
+    // 重新載入頁面
+    window.location.reload();
+  };
+
+  // 修改頁面載入時的快速恢復邏輯
+  useEffect(() => {
+    const quickRestore = sessionStorage.getItem('quickRestore');
+    if (quickRestore === 'true' && isLoggedIn) {
+      // 清除快速恢復標誌
+      sessionStorage.removeItem('quickRestore');
+      
+      // 直接從 localStorage 恢復筆記
+      const savedMemos = localStorage.getItem('memos');
+      if (savedMemos) {
+        try {
+          const parsedMemos = JSON.parse(savedMemos);
+          setMemos(parsedMemos);
+        } catch (error) {
+          console.error('解析本地筆記數據失敗:', error);
+        }
+      }
+    }
+  }, []);
+
+  // 添加 componentDidMount 生命週期模擬，確保首次載入時同步
+  useEffect(() => {
+    const initialSync = async () => {
+      if (isLoggedIn && userId) {
+        try {
+          // 先嘗試從 API 載入最新筆記
+          const result = await callApi({
+            endpoint: '/api/users',
+            method: 'GET',
+            timeout: 5000
+          });
+          
+          if (result.success) {
+            const currentUser = result.data.find(user => user.id === userId);
+            if (currentUser && currentUser.note) {
+              // 將服務器筆記與本地筆記合併
+              const localMemos = JSON.parse(localStorage.getItem('memos') || '[]');
+              const memoMap = {};
+              
+              // 以時間戳為鍵，確保不重複
+              localMemos.forEach(memo => {
+                memoMap[memo.timestamp] = memo;
+              });
+              
+              currentUser.note.forEach(memo => {
+                if (!memoMap[memo.timestamp]) {
+                  memoMap[memo.timestamp] = memo;
+                }
+              });
+              
+              // 轉換回數組並按時間戳排序
+              const mergedMemos = Object.values(memoMap).sort((a, b) => b.timestamp - a.timestamp);
+              
+              // 更新狀態和 localStorage
+              setMemos(mergedMemos);
+              localStorage.setItem('memos', JSON.stringify(mergedMemos));
+            }
+          }
+        } catch (error) {
+          console.error('載入用戶筆記失敗:', error);
+        }
+      }
+    };
+    
+    initialSync();
+  }, [isLoggedIn, userId]);
+
+  // 修改 syncNotesToServer 函數以更穩健地處理同步
   const syncNotesToServer = async (forcedSync = false) => {
     if (!isLoggedIn || !userId) return false;
     if (memos.length === 0 && !forcedSync) return false;
     
     setIsSyncing(true);
     
-    const result = await callApi({
-      endpoint: '/api/notes/save',
-      method: 'POST',
-      data: { userId, notes: memos },
-      timeout: 5000,
-      successLogType: LOG_TYPES.NOTES_SYNC_SUCCESS,
-      errorLogType: LOG_TYPES.NOTES_SYNC_ERROR
-    });
-    
-    setIsSyncing(false);
-    return result.success;
+    try {
+      // 確保備份當前筆記到本地
+      localStorage.setItem('memos', JSON.stringify(memos));
+      
+      // 進行服務器同步
+      const result = await callApi({
+        endpoint: '/api/notes/save',
+        method: 'POST',
+        data: { 
+          userId, 
+          notes: memos
+        },
+        successLogType: LOG_TYPES.NOTES_SYNC_SUCCESS,
+        errorLogType: LOG_TYPES.NOTES_SYNC_ERROR,
+        timeout: 10000 // 增加超時時間確保可以完成
+      });
+      
+      if (result.success) {
+        setLastSyncTime(Date.now());
+        console.log('筆記同步成功');
+      } else {
+        console.error('筆記同步失敗:', result.error);
+      }
+      
+      setIsSyncing(false);
+      return result.success;
+    } catch (error) {
+      console.error('同步筆記過程中發生錯誤:', error);
+      setIsSyncing(false);
+      return false;
+    }
   };
 
   // 獲取新聞數據
@@ -853,6 +977,68 @@ ${news.url}`;
       setApiError("無法連接到新聞數據服務。請稍後再試。");
     }
   };
+
+  // 添加定期自動同步
+  useEffect(() => {
+    if (isLoggedIn && userId) {
+      // 登入後立即同步一次
+      syncNotesToServer(true);
+      
+      // 設置定期同步
+      const syncInterval = setInterval(() => {
+        syncNotesToServer();
+      }, 5 * 60 * 1000); // 每5分鐘同步一次
+      
+      return () => clearInterval(syncInterval);
+    }
+  }, [isLoggedIn, userId]);
+
+  // 添加頁面關閉前同步
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      syncNotesToServer(true);
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // 修改登入後的筆記載入邏輯
+  useEffect(() => {
+    if (isLoggedIn && userId) {
+      const loadUserNotes = async () => {
+        const result = await callApi({
+          endpoint: '/api/users',
+          method: 'GET'
+        });
+        
+        if (result.success) {
+          const currentUser = result.data.find(user => user.id === userId);
+          if (currentUser && currentUser.note) {
+            setMemos(currentUser.note);
+            localStorage.setItem('memos', JSON.stringify(currentUser.note));
+          }
+        }
+      };
+      
+      loadUserNotes();
+    }
+  }, [isLoggedIn, userId]);
+
+  // 添加頁面載入時的筆記恢復邏輯
+  useEffect(() => {
+    if (isLoggedIn) {
+      const savedMemos = localStorage.getItem('memos');
+      if (savedMemos) {
+        try {
+          const parsedMemos = JSON.parse(savedMemos);
+          setMemos(parsedMemos);
+        } catch (error) {
+          console.error('解析本地筆記數據失敗:', error);
+        }
+      }
+    }
+  }, [isLoggedIn]);
 
   // 修改登入表單部分為響應式並顯示錯誤訊息
   if (!isLoggedIn) {

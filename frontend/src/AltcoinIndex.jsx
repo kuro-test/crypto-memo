@@ -6,6 +6,23 @@ import { log, LOG_TYPES } from "./utils/logger";
 
 ChartJS.register(ArcElement, Tooltip);
 
+// 在組件頂部添加 formatTimestamp 函數
+const formatTimestamp = (timestamp) => {
+  // 將字符串時間戳轉換為數字並乘以1000（轉換為毫秒）
+  const date = new Date(Number(timestamp) * 1000);
+  return date.toLocaleString("zh-TW", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).replace(/\//g, "")
+    .replace(/(\d{4})(\d{2})(\d{2})/, "$1年$2月$3日 ")
+    .replace(/,/, "");
+};
+
 const AltcoinIndex = ({ onAddToNote }) => {
   const [indexValue, setIndexValue] = useState(50);
   const [status, setStatus] = useState("");
@@ -17,6 +34,8 @@ const AltcoinIndex = ({ onAddToNote }) => {
   const [hasLoggedSuccess, setHasLoggedSuccess] = useState(false);
   // 添加狀態變數來追蹤 tooltip 是否顯示
   const [showTooltip, setShowTooltip] = useState(false);
+  const [timestamp, setTimestamp] = useState(null);
+  const [showUpdateTime, setShowUpdateTime] = useState(false);
 
   // 添加處理觸控事件的函數
   const handleTouchStart = () => {
@@ -72,6 +91,7 @@ const AltcoinIndex = ({ onAddToNote }) => {
             setIndexValue(parseInt(data.value));
             setStatus(translateText[data.status] || data.status);
             setTitle(translateText[data.title] || data.title);
+            setTimestamp(data.timestamp); // 保存時間戳
             log(LOG_TYPES.ALTCOIN_SUCCESS);
             return;
           }
@@ -85,7 +105,7 @@ const AltcoinIndex = ({ onAddToNote }) => {
     };
 
     fetchAltcoinIndex();
-  }, []); // 移除 hasLoggedSuccess 依賴
+  }, []);
 
   const handleAddToNote = () => {
     const currentStatus = `山寨幣月份指數
@@ -104,12 +124,16 @@ const AltcoinIndex = ({ onAddToNote }) => {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="flex items-center justify-center mb-2">
-        <h3 className="text-xl font-semibold text-center text-white">
+      <div className="relative flex items-center justify-center">
+        <h3 
+          className="text-xl font-semibold text-center text-white cursor-help"
+          onMouseEnter={() => setShowUpdateTime(true)}
+          onMouseLeave={() => setShowUpdateTime(false)}
+        >
           {title || "山寨幣月份指數"}
         </h3>
         
-        {/* 滑鼠懸停或觸控後顯示 tooltip */}
+        {/* 添加 info 圖標 */}
         <div className="group relative ml-2 inline-block">
           <span 
             className="text-yellow-500 cursor-help"
@@ -119,13 +143,20 @@ const AltcoinIndex = ({ onAddToNote }) => {
               <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
             </svg>
           </span>
-            
-          {/* 提示框 - 桌面上懸停時顯示，移動裝置上點擊後顯示 */}
+          
+          {/* 提示框 */}
           <div className={`bg-gray-800 text-white text-xs rounded-lg py-2 px-3 absolute z-50 transition-opacity duration-300 w-40 right-auto top-0 -left-32 pointer-events-none shadow-lg border border-gray-700 whitespace-normal
             ${(showTooltip || false) ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
             {tooltipText}
           </div>
         </div>
+
+        {/* 時間提示框 */}
+        {showUpdateTime && timestamp && (
+          <div className="absolute z-10 bg-gray-800 text-white text-xs rounded-lg py-1 px-2 top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap border border-gray-700">
+            更新時間：{formatTimestamp(timestamp)}
+          </div>
+        )}
       </div>
       
       {error ? (

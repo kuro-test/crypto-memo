@@ -6,6 +6,23 @@ import { log, LOG_TYPES, getApiEndpoint, switchToProd } from "./utils/logger";
 
 ChartJS.register(ArcElement, Tooltip);
 
+// 修改 formatTimestamp 函數
+const formatTimestamp = (timestamp) => {
+  // 將字符串時間戳轉換為數字並乘以1000（轉換為毫秒）
+  const date = new Date(Number(timestamp) * 1000);
+  return date.toLocaleString("zh-TW", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).replace(/\//g, "")
+    .replace(/(\d{4})(\d{2})(\d{2})/, "$1年$2月$3日 ")
+    .replace(/,/, "");
+};
+
 const GaugeChart = ({ onAddToNote }) => {
   const [indexValue, setIndexValue] = useState(50);
   const [label, setLabel] = useState("中性");
@@ -14,6 +31,8 @@ const GaugeChart = ({ onAddToNote }) => {
   const [isTouchActive, setIsTouchActive] = useState(false);
   // 添加這個變數來確保只輸出一次成功日誌
   const [hasLoggedSuccess, setHasLoggedSuccess] = useState(false);
+  const [timestamp, setTimestamp] = useState(null);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   // 添加處理觸控事件的函數
   const handleTouchStart = () => {
@@ -37,6 +56,7 @@ const GaugeChart = ({ onAddToNote }) => {
           const data = fearGreedData.data;
           setIndexValue(parseInt(data.value));
           setLabel(data.value_classification);
+          setTimestamp(data.timestamp); // 保存時間戳
           log(LOG_TYPES.FEAR_GREED_SUCCESS);
           return;
         }
@@ -119,9 +139,21 @@ const GaugeChart = ({ onAddToNote }) => {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <h3 className="text-base font-semibold text-white-400">
-        比特幣恐懼貪婪指數
-      </h3>
+      <div className="relative">
+        <h3 
+          className="text-base font-semibold text-white-400 cursor-help"
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
+          比特幣恐懼貪婪指數
+        </h3>
+        {/* 時間提示框 */}
+        {showTooltip && timestamp && (
+          <div className="absolute z-10 bg-gray-800 text-white text-xs rounded-lg py-1 px-2 top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap border border-gray-700">
+            更新時間：{formatTimestamp(timestamp)}
+          </div>
+        )}
+      </div>
       
       {/* 大幅減少容器高度，使元素更緊湊 */}
       <div className="relative w-48 h-36 -mt-2">

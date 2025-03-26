@@ -1,0 +1,15 @@
+[
+  {
+    "timestamp": 1742956785748
+  },
+  {
+    "id": 1,
+    "title": "Welcome to Crypto Memo",
+    "titleZh": "歡迎使用 Crypto Memo",
+    "content": "Please use the scraper to fetch the latest crypto news.",
+    "contentZh": "請使用爬蟲功能獲取最新的加密貨幣新聞。",
+    "timeago": "Just now",
+    "summaryZh": "這是一個預設的歡迎消息。請使用爬蟲功能來獲取真實的新聞數據。",
+    "detailZh": "Crypto Memo 是一個加密貨幣新聞和指數跟踪工具。\n\n您可以爬取最新的加密貨幣新聞並將它們翻譯成中文。此外，您還可以跟踪比特幣恐懼與貪婪指數以及山寨幣月份指數。\n\n使用左側的筆記功能來保存重要信息。"
+  }
+]

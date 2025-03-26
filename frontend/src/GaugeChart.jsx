@@ -48,30 +48,62 @@ const GaugeChart = ({ onAddToNote }) => {
 
   useEffect(() => {
     const fetchFearAndGreedIndex = async () => {
-      try {
-        const response = await axios.get(`${getApiEndpoint()}/api/index`, { timeout: 3000 });
-        const fearGreedData = response.data.find(item => item.id === "fear&greed");
-        
-        if (fearGreedData && fearGreedData.data) {
-          const data = fearGreedData.data;
-          setIndexValue(parseInt(data.value));
-          setLabel(data.value_classification);
-          setTimestamp(data.timestamp); // 保存時間戳
-          log(LOG_TYPES.FEAR_GREED_SUCCESS);
-          return;
+      // 首先嘗試本地端點，然後嘗試生產端點
+      const baseUrls = [
+        'http://localhost:3000',
+        'https://crypto-memo-production.up.railway.app'
+      ];
+      
+      let lastError = null;
+      
+      for (const baseUrl of baseUrls) {
+        try {
+          console.log(`嘗試從 ${baseUrl}/api/index 獲取恐懼貪婪指數...`);
+          
+          // 移除自訂標頭以解決 CORS 問題
+          const response = await axios.get(`${baseUrl}/api/index`, { 
+            timeout: 8000  // 只保留超時設定，移除其他標頭
+          });
+          
+          console.log(`從 ${baseUrl} 獲取的響應:`, response.data);
+          
+          if (Array.isArray(response.data)) {
+            const fearGreedData = response.data.find(item => item.id === "fear&greed");
+            
+            if (fearGreedData && fearGreedData.data) {
+              const data = fearGreedData.data;
+              // 確保 value 被轉換為數字
+              const value = parseInt(data.value) || 50;
+              setIndexValue(value);
+              setLabel(data.value_classification || "中性");
+              setTimestamp(data.timestamp || Math.floor(Date.now() / 1000).toString()); 
+              log(LOG_TYPES.FEAR_GREED_SUCCESS);
+              console.log(`成功從 ${baseUrl} 獲取恐懼貪婪指數: ${value} - ${data.value_classification}`);
+              return; // 成功獲取數據後退出
+            } else {
+              console.warn(`從 ${baseUrl} 獲取的數據無效或缺少 fear&greed 項目`, response.data);
+            }
+          } else {
+            console.warn(`從 ${baseUrl} 獲取的響應不是數組格式`, response.data);
+          }
+        } catch (error) {
+          lastError = error;
+          console.error(`無法從 ${baseUrl} 獲取恐懼貪婪指數:`, error.message);
+          // 繼續嘗試下一個端點
         }
-      } catch (error) {
-        if (!isUsingProd) {
-          switchToProd();
-          return fetchFearAndGreedIndex(); // 重試一次
-        }
-        log(LOG_TYPES.FEAR_GREED_ERROR);
-        setError("無法獲取恐懼貪婪指數資料");
       }
+      
+      // 如果所有嘗試都失敗，使用默認值
+      console.warn(`所有 API 端點嘗試失敗，使用默認恐懼貪婪指數值`);
+      setIndexValue(50);
+      setLabel("中性");
+      setTimestamp(Math.floor(Date.now() / 1000).toString());
+      log(LOG_TYPES.FEAR_GREED_ERROR);
+      setError(`無法獲取恐懼貪婪指數資料: ${lastError?.message || '未知錯誤'}`);
     };
 
     fetchFearAndGreedIndex();
-  }, [hasLoggedSuccess]);
+  }, []);
 
   // 設定顏色區間
   const backgroundColors = [

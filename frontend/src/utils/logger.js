@@ -69,88 +69,129 @@ export const API_CONFIG = {
   }
 };
 
-// 通用的API請求函數，支持自動切換和重試
+// 創建一個專門用於獲取新聞的函數
+export async function fetchNewsData() {
+  console.log('嘗試獲取新聞數據...');
+  
+  // 定義要嘗試的 API URL
+  const apiUrls = [
+    API_CONFIG.getBaseUrl(), // 先使用當前設置的環境
+    API_CONFIG.PROD,         // 然後嘗試生產環境
+    API_CONFIG.LOCAL         // 最後嘗試本地環境
+  ];
+  
+  // 去重複
+  const uniqueUrls = [...new Set(apiUrls)];
+  
+  for (const baseUrl of uniqueUrls) {
+    try {
+      console.log(`嘗試從 ${baseUrl}/api/news 獲取新聞...`);
+      
+      // 使用純 fetch，不加任何額外標頭，避免 CORS 問題
+      const response = await fetch(`${baseUrl}/api/news`, {
+        method: 'GET',
+        // 不添加任何自定義標頭
+        credentials: 'omit' // 不發送 cookie，避免 CORS 問題
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ 成功從 ${baseUrl} 獲取新聞數據`);
+        
+        // 成功獲取數據後，更新當前使用的環境
+        if (baseUrl === API_CONFIG.PROD) {
+          API_CONFIG.switchToProd();
+        } else if (baseUrl === API_CONFIG.LOCAL) {
+          API_CONFIG.switchToLocal();
+        }
+        
+        return { success: true, data };
+      } else {
+        console.warn(`從 ${baseUrl} 獲取新聞失敗: HTTP 狀態 ${response.status}`);
+      }
+    } catch (error) {
+      console.warn(`從 ${baseUrl} 獲取新聞失敗: ${error.message}`);
+      // 如果出錯，繼續嘗試下一個 URL
+    }
+  }
+  
+  // 如果所有嘗試都失敗，返回一個空數據和錯誤訊息
+  console.error('所有獲取新聞嘗試都失敗');
+  return { 
+    success: false, 
+    data: [{
+      id: 1,
+      titleZh: "無法連接到新聞服務",
+      contentZh: "目前無法獲取最新新聞，請稍後再試。",
+      timeago: "剛才",
+      timestamp: Date.now()
+    }]
+  };
+}
+
+// 修改標準的 callApi 函數，對 GET 請求採用更簡單的方式避免 CORS 問題
 export async function callApi(options) {
   const { 
-    endpoint,           // API端點，例如 '/api/index'
-    method = 'GET',     // 請求方法
-    data = null,        // 請求數據
-    timeout = 10000,    // 增加默認超時時間
-    headers = {},       // 自定義標頭
-    successLogType,     // 成功日誌類型
-    errorLogType,       // 錯誤日誌類型
-    tryBothEnvs = true, // 是否嘗試兩個環境
-    isRetry = false,    // 是否為重試請求
-    envOverride = null  // 可選，強制指定使用的環境
+    endpoint,
+    method = 'GET',
+    data = null,
+    timeout = 10000,
+    headers = {},
+    successLogType,
+    errorLogType,
+    tryBothEnvs = true,
+    isRetry = false,
+    envOverride = null
   } = options;
   
   // 決定嘗試順序
   let envSequence = [];
   
-  // 如果指定了環境，則只使用該環境
   if (envOverride === 'LOCAL') {
     envSequence = [API_CONFIG.LOCAL];
   } else if (envOverride === 'PROD') {
     envSequence = [API_CONFIG.PROD];
   } else {
-    // 根據優先設置決定嘗試順序
     if (API_CONFIG.preferLocal) {
       envSequence = [API_CONFIG.LOCAL, API_CONFIG.PROD]; // 先本地後生產
     } else {
       envSequence = [API_CONFIG.PROD, API_CONFIG.LOCAL]; // 先生產後本地
     }
     
-    // 如果是重試請求，且僅嘗試第二個環境
     if (isRetry) {
       envSequence = [envSequence[1]];
     }
     
-    // 如果不需要嘗試兩個環境，只使用當前環境
     if (!tryBothEnvs) {
       envSequence = [API_CONFIG.getBaseUrl()];
     }
   }
   
-  // 遍歷環境序列依次嘗試
   let lastError = null;
   
   for (const baseUrl of envSequence) {
     try {
-      // 輸出當前正在嘗試的環境
       console.log(`正在嘗試使用 ${baseUrl} 環境發送 ${method} 請求到 ${endpoint}`);
       
-      // 修正 CORS 問題：移除可能導致 CORS 問題的 header
-      const safeHeaders = { ...headers };
-      // 如果是生產環境，移除 cache-control 和 pragma 請求頭，因為它們可能導致 CORS 問題
-      if (baseUrl === API_CONFIG.PROD) {
-        delete safeHeaders['Cache-Control'];
-        delete safeHeaders['Pragma'];
-      }
-      
-      // 使用 fetch API 處理請求，對於 GET 和 POST 使用不同的方式
+      // GET 請求：使用純淨的 fetch，不添加額外標頭
       if (method === 'GET') {
         try {
+          // 避免添加任何可能導致 CORS 問題的標頭
           const response = await fetch(`${baseUrl}${endpoint}`, {
             method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              ...safeHeaders
-            },
-            credentials: 'omit' // 不發送 cookie，幫助避免某些 CORS 問題
+            credentials: 'omit' // 不發送 cookie
           });
           
           if (response.ok) {
             const responseData = await response.json();
             
-            // 請求成功，更新當前環境設置
             API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
             
-            // 記錄成功日誌
             if (successLogType) {
               log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
             }
             
-            console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用 fetch)`);
+            console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用簡單 fetch)`);
             
             return { 
               success: true, 
@@ -161,17 +202,19 @@ export async function callApi(options) {
             throw new Error(`HTTP 錯誤: ${response.status}`);
           }
         } catch (fetchError) {
-          console.warn(`使用 fetch 請求失敗: ${fetchError.message}，嘗試使用 axios`);
-          // 如果 fetch 失敗，嘗試使用 axios
+          console.warn(`使用簡單 fetch 請求失敗: ${fetchError.message}`);
+          // 不需要回退到 axios，繼續嘗試下一個環境
+          throw fetchError;
         }
-      } else if (method === 'POST') {
-        // 對於 POST 請求，分開處理
+      } 
+      // POST 請求：只使用必要的標頭
+      else if (method === 'POST') {
         try {
           const fetchOptions = {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              ...safeHeaders
+              'Content-Type': 'application/json'
+              // 不添加任何其他標頭
             },
             credentials: 'omit',
             body: JSON.stringify(data)
@@ -182,15 +225,13 @@ export async function callApi(options) {
           if (response.ok) {
             const responseData = await response.json();
             
-            // 請求成功，更新當前環境設置
             API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
             
-            // 記錄成功日誌
             if (successLogType) {
               log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
             }
             
-            console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用 fetch POST)`);
+            console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用簡單 fetch POST)`);
             
             return { 
               success: true, 
@@ -201,70 +242,17 @@ export async function callApi(options) {
             throw new Error(`HTTP 錯誤: ${response.status}`);
           }
         } catch (fetchPostError) {
-          console.warn(`使用 fetch POST 請求失敗: ${fetchPostError.message}，嘗試使用 axios`);
-          // 如果 fetch POST 失敗，嘗試使用 axios
+          console.warn(`使用簡單 fetch POST 請求失敗: ${fetchPostError.message}`);
+          throw fetchPostError;
         }
-      }
-      
-      // 作為備選方案，使用 axios
-      // 注意：如果前面的 fetch 嘗試失敗，這裡仍會執行
-      try {
-        // 對於生產環境，簡化 axios 請求，移除可能引起 CORS 問題的標頭
-        const axiosConfig = {
-          url: `${baseUrl}${endpoint}`,
-          method,
-          timeout,
-          headers: {
-            'Content-Type': 'application/json',
-            ...safeHeaders
-          }
-        };
-        
-        // 根據請求方法添加適當的數據
-        if (method !== 'GET' && data) {
-          axiosConfig.data = data;
-        } else if (method === 'GET' && data) {
-          axiosConfig.params = data;
-        }
-        
-        const response = await axios(axiosConfig);
-        
-        // 請求成功，更新當前環境設置
-        API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
-        
-        // 記錄成功日誌
-        if (successLogType) {
-          log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
-        }
-        
-        console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用 axios)`);
-        
-        return { 
-          success: true, 
-          data: response.data, 
-          env: baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL' 
-        };
-      } catch (error) {
-        lastError = error;
-        
-        // 輸出連接失敗信息
-        console.warn(`❌ 無法連接到 ${baseUrl} 環境: ${error.message}`);
-        
-        // 繼續嘗試下一個環境
-        continue;
       }
     } catch (error) {
       lastError = error;
-      
-      // 輸出連接失敗信息
       console.warn(`❌ 無法連接到 ${baseUrl} 環境: ${error.message}`);
-      
-      // 繼續嘗試下一個環境
       continue;
     }
   }
   
-  // 所有嘗試都失敗
   if (errorLogType) {
     log(errorLogType, lastError?.message || '未知錯誤');
   }

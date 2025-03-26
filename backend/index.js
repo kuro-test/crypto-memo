@@ -12,7 +12,12 @@ const
 const corsOptions = {
   origin: ['https://crypto-memo.vercel.app', 'http://localhost:5173', 'http://127.0.0.1:5173'],
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Cache-Control',  // 添加這些常用標頭
+    'Pragma'          // 添加這些常用標頭
+  ],
   credentials: true,
   optionsSuccessStatus: 200
 };

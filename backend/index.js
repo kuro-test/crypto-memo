@@ -476,12 +476,183 @@ app.post('/api/login', express.json(), (req, res) => {
 
 // 儲存筆記 API
 app.post('/api/notes/save', express.json(), (req, res) => {
-  const { userId, notes } = req.body;
+  const { userId, notes, forceFullSync = false, deletedNotes = [], immediateSync = false, urgent = false } = req.body;
   
-  if (!userId || !notes) {
-    return res.status(400).json({ error: '用戶ID和筆記不能為空' });
+  if (!userId) {
+    return res.status(400).json({ error: '用戶ID不能為空' });
   }
   
+  if (!notes && !deletedNotes.length) {
+    return res.status(400).json({ error: '筆記不能為空' });
+  }
+  
+  console.log(`接收到筆記同步請求，用戶ID: ${userId}, 筆記數量: ${notes?.length || 0}, 刪除筆記數量: ${deletedNotes.length}, 強制完全同步: ${forceFullSync}, 緊急同步: ${immediateSync}, 超緊急: ${urgent}`);
+  
+  // 如果是超緊急同步，最高優先級處理
+  if (urgent) {
+    console.log('⚡⚡ 執行超緊急同步操作，最高優先處理');
+    try {
+      // 嘗試讀取 user.json
+      const possiblePaths = [
+        path.join(__dirname, 'database', 'user.json'),      // 本地路徑
+        '/app/database/user.json',                          // 部署路徑
+      ];
+      
+      let foundPath = null;
+      
+      // 找到第一個存在的路徑
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          foundPath = p;
+          break;
+        }
+      }
+      
+      if (!foundPath) {
+        return res.status(500).json({ error: '用戶數據檔案不存在' });
+      }
+      
+      // 使用同步方法讀取和寫入
+      const data = fs.readFileSync(foundPath, 'utf8');
+      const users = JSON.parse(data);
+      const userIndex = users.findIndex(u => u.id === userId);
+      
+      if (userIndex === -1) {
+        return res.status(404).json({ error: '找不到該用戶' });
+      }
+      
+      // 直接替換用戶的筆記
+      if (notes && notes.length > 0) {
+        users[userIndex].note = notes;
+        console.log(`⚡⚡ 超緊急同步已設置用戶筆記，筆記數量: ${notes.length}`);
+      }
+      
+      // 如果有刪除操作，優先處理
+      if (deletedNotes && deletedNotes.length > 0) {
+        console.log('⚡⚡ 超緊急處理刪除筆記');
+        
+        if (!users[userIndex].note) {
+          users[userIndex].note = [];
+        }
+        
+        if (users[userIndex].note.length > 0) {
+          const deleteMap = {};
+          deletedNotes.forEach(note => {
+            if (note && note.timestamp) {
+              deleteMap[note.timestamp] = true;
+              console.log(`⚡⚡ 超緊急標記刪除: ${note.title || '無標題'}, 時間戳: ${note.timestamp}`);
+            }
+          });
+          
+          // 過濾掉要刪除的筆記
+          const originalLength = users[userIndex].note.length;
+          users[userIndex].note = users[userIndex].note.filter(note => {
+            return !deleteMap[note.timestamp];
+          });
+          
+          console.log(`⚡⚡ 超緊急刪除完成，原筆記數: ${originalLength}, 現筆記數: ${users[userIndex].note.length}`);
+        }
+      }
+      
+      // 立即寫入文件
+      fs.writeFileSync(foundPath, JSON.stringify(users, null, 2), 'utf8');
+      console.log(`⚡⚡ 超緊急同步成功，已完全更新用戶 ${userId} 的筆記`);
+      
+      return res.json({
+        success: true,
+        count: users[userIndex].note.length,
+        deletedCount: deletedNotes?.length || 0,
+        urgent: true
+      });
+    } catch (error) {
+      console.error('⚡⚡ 超緊急同步處理失敗:', error);
+      return res.status(500).json({ error: '超緊急同步失敗，請重試' });
+    }
+  }
+  
+  // 如果是緊急同步，提高處理優先級
+  if (immediateSync) {
+    console.log('⚡ 執行緊急同步操作，優先處理');
+    // 使用同步方法讀取並立即寫入檔案
+    try {
+      // 嘗試讀取 user.json
+      const possiblePaths = [
+        path.join(__dirname, 'database', 'user.json'),      // 本地路徑
+        '/app/database/user.json',                          // 部署路徑
+      ];
+      
+      let foundPath = null;
+      
+      // 找到第一個存在的路徑
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          foundPath = p;
+          break;
+        }
+      }
+      
+      if (!foundPath) {
+        return res.status(500).json({ error: '用戶數據檔案不存在' });
+      }
+      
+      // 同步讀取文件
+      const data = fs.readFileSync(foundPath, 'utf8');
+      const users = JSON.parse(data);
+      const userIndex = users.findIndex(u => u.id === userId);
+      
+      if (userIndex === -1) {
+        return res.status(404).json({ error: '找不到該用戶' });
+      }
+      
+      // 處理刪除操作
+      if (deletedNotes.length > 0) {
+        console.log('⚡ 緊急處理刪除筆記請求');
+        const deleteMap = {};
+        deletedNotes.forEach(note => {
+          if (note && note.timestamp) {
+            deleteMap[note.timestamp] = true;
+            console.log(`準備刪除筆記: ${note.title || '無標題'}, 時間戳: ${note.timestamp}`);
+          }
+        });
+        
+        // 直接從用戶筆記中過濾掉要刪除的筆記
+        if (users[userIndex].note && Array.isArray(users[userIndex].note)) {
+          const originalLength = users[userIndex].note.length;
+          users[userIndex].note = users[userIndex].note.filter(note => {
+            const shouldKeep = !deleteMap[note.timestamp];
+            if (!shouldKeep) {
+              console.log(`已刪除筆記: ${note.title || '無標題'}, 時間戳: ${note.timestamp}`);
+            }
+            return shouldKeep;
+          });
+          console.log(`刪除操作完成，原筆記數: ${originalLength}, 現筆記數: ${users[userIndex].note.length}`);
+        }
+      }
+      
+      // 處理添加/更新操作
+      if (notes && notes.length > 0) {
+        // 用強制同步模式確保更新生效
+        users[userIndex].note = notes;
+        console.log(`⚡ 緊急同步已更新用戶筆記，筆記數量: ${notes.length}`);
+      }
+      
+      // 同步寫入文件
+      fs.writeFileSync(foundPath, JSON.stringify(users, null, 2), 'utf8');
+      console.log(`⚡ 緊急同步完成，用戶 ${userId} 筆記已儲存`);
+      
+      return res.json({
+        success: true,
+        count: users[userIndex].note.length,
+        deletedCount: deletedNotes.length,
+        immediate: true
+      });
+    } catch (error) {
+      console.error('⚡ 緊急同步處理失敗:', error);
+      return res.status(500).json({ error: '緊急同步失敗，請重試' });
+    }
+  }
+  
+  // 標準非緊急同步處理...
   // 嘗試讀取 user.json
   const possiblePaths = [
     path.join(__dirname, 'database', 'user.json'),      // 本地路徑
@@ -516,8 +687,64 @@ app.post('/api/notes/save', express.json(), (req, res) => {
         return res.status(404).json({ error: '找不到該用戶' });
       }
       
-      // 更新用戶的筆記
-      users[userIndex].note = notes;
+      // 處理現有的筆記
+      let existingNotes = users[userIndex].note || [];
+      
+      if (forceFullSync || !existingNotes.length) {
+        // 如果是強制完全同步模式，直接替換現有筆記
+        console.log('執行完全同步操作');
+        users[userIndex].note = notes;
+      } else {
+        // 如果不是完全同步，則合併筆記
+        console.log('執行增量同步操作');
+        
+        // 先處理刪除操作
+        if (deletedNotes.length > 0) {
+          console.log('處理刪除筆記請求');
+          
+          // 將要刪除的筆記轉換為映射，以便快速查找
+          const deleteMap = {};
+          deletedNotes.forEach(note => {
+            if (note && note.timestamp) {
+              deleteMap[note.timestamp] = true;
+            }
+          });
+          
+          // 過濾掉要刪除的筆記
+          existingNotes = existingNotes.filter(note => {
+            const shouldKeep = !deleteMap[note.timestamp];
+            if (!shouldKeep) {
+              console.log(`刪除筆記: ${note.title || '無標題'}, 時間戳: ${note.timestamp}`);
+            }
+            return shouldKeep;
+          });
+        }
+        
+        // 再處理新增/更新操作
+        const memoMap = {};
+        
+        // 先將現有筆記添加到映射中
+        existingNotes.forEach(memo => {
+          memoMap[memo.timestamp] = memo;
+        });
+        
+        // 然後用新筆記更新映射
+        notes.forEach(memo => {
+          if (!memoMap[memo.timestamp] || 
+              (memo.lastModified && memoMap[memo.timestamp].lastModified && 
+               memo.lastModified > memoMap[memo.timestamp].lastModified)) {
+            memoMap[memo.timestamp] = memo;
+          }
+        });
+        
+        // 將映射轉換回數組
+        users[userIndex].note = Object.values(memoMap);
+      }
+      
+      // 按時間戳排序筆記
+      users[userIndex].note.sort((a, b) => b.timestamp - a.timestamp);
+      
+      console.log(`同步後筆記數量: ${users[userIndex].note.length}`);
       
       // 寫回檔案
       fs.writeFile(foundPath, JSON.stringify(users, null, 2), 'utf8', (writeErr) => {
@@ -527,13 +754,73 @@ app.post('/api/notes/save', express.json(), (req, res) => {
         }
         
         console.log(`用戶 ${userId} 筆記儲存成功`);
-        res.json({ success: true });
+        res.json({ 
+          success: true,
+          count: users[userIndex].note.length,
+          deletedCount: deletedNotes.length
+        });
       });
     } catch (parseErr) {
       console.error('解析 user.json 時發生錯誤:', parseErr);
       res.status(500).json({ error: '用戶數據格式錯誤' });
     }
   });
+});
+
+// 獲取用戶筆記 API
+app.get('/api/user/notes', (req, res) => {
+  const { userId } = req.query;
+  
+  if (!userId) {
+    return res.status(400).json({ error: '用戶ID不能為空' });
+  }
+  
+  console.log(`接收到獲取筆記請求，用戶ID: ${userId}`);
+  
+  try {
+    // 嘗試讀取 user.json
+    const possiblePaths = [
+      path.join(__dirname, 'database', 'user.json'),      // 本地路徑
+      '/app/database/user.json',                          // 部署路徑
+    ];
+    
+    let foundPath = null;
+    
+    // 找到第一個存在的路徑
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        foundPath = p;
+        break;
+      }
+    }
+    
+    if (!foundPath) {
+      return res.status(500).json({ error: '用戶數據檔案不存在' });
+    }
+    
+    // 同步讀取文件
+    const data = fs.readFileSync(foundPath, 'utf8');
+    const users = JSON.parse(data);
+    const user = users.find(u => u.id === userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: '找不到該用戶' });
+    }
+    
+    // 返回用戶的筆記
+    const notes = user.note || [];
+    
+    console.log(`成功讀取用戶 ${userId} 的筆記，數量: ${notes.length}`);
+    
+    return res.json({
+      success: true,
+      notes,
+      count: notes.length
+    });
+  } catch (error) {
+    console.error('讀取用戶筆記失敗:', error);
+    return res.status(500).json({ error: '讀取筆記失敗，請重試' });
+  }
 });
 
 // 處理根路徑請求
@@ -643,4 +930,5 @@ app.listen(PORT, () => {
   console.log(`- http://localhost:${PORT}/api/users`);
   console.log(`- http://localhost:${PORT}/api/login`);
   console.log(`- http://localhost:${PORT}/api/notes/save`);
+  console.log(`- http://localhost:${PORT}/api/user/notes`);
 });

@@ -24,8 +24,8 @@ export const LOG_TYPES = {
 export const API_CONFIG = {
   LOCAL: 'http://localhost:3000',
   PROD: 'https://crypto-memo-production.up.railway.app',
-  isUsingProd: false,
-  preferLocal: true, // 新增優先本地選項
+  isUsingProd: true, // 將默認值設為 true，使用生產環境
+  preferLocal: false, // 修改為默認不優先使用本地
   
   // 獲取當前環境名稱
   getCurrentEnv() {
@@ -139,47 +139,33 @@ export async function callApi(options) {
     headers = {},
     successLogType,
     errorLogType,
-    tryBothEnvs = true,
+    tryBothEnvs = false, // 預設不嘗試兩個環境，只用當前環境
     isRetry = false,
     envOverride = null
   } = options;
   
-  // 決定嘗試順序
-  let envSequence = [];
+  // 決定嘗試順序，預設只使用生產環境
+  let envSequence = [API_CONFIG.PROD];
   
+  // 只在特殊情況下嘗試本地環境
   if (envOverride === 'LOCAL') {
     envSequence = [API_CONFIG.LOCAL];
-  } else if (envOverride === 'PROD') {
-    envSequence = [API_CONFIG.PROD];
-  } else {
-    if (API_CONFIG.preferLocal) {
-      envSequence = [API_CONFIG.LOCAL, API_CONFIG.PROD]; // 先本地後生產
-    } else {
-      envSequence = [API_CONFIG.PROD, API_CONFIG.LOCAL]; // 先生產後本地
-    }
-    
-    if (isRetry) {
-      envSequence = [envSequence[1]];
-    }
-    
-    if (!tryBothEnvs) {
-      envSequence = [API_CONFIG.getBaseUrl()];
-    }
+  } else if (tryBothEnvs) {
+    envSequence = [API_CONFIG.PROD, API_CONFIG.LOCAL];
   }
   
   let lastError = null;
   
   for (const baseUrl of envSequence) {
     try {
-      console.log(`正在嘗試使用 ${baseUrl} 環境發送 ${method} 請求到 ${endpoint}`);
+      // 減少日誌輸出，不輸出每次請求的嘗試訊息
       
       // GET 請求：使用純淨的 fetch，不添加額外標頭
       if (method === 'GET') {
         try {
-          // 避免添加任何可能導致 CORS 問題的標頭
           const response = await fetch(`${baseUrl}${endpoint}`, {
             method: 'GET',
-            credentials: 'omit' // 不發送 cookie
+            credentials: 'omit'
           });
           
           if (response.ok) {
@@ -188,10 +174,9 @@ export async function callApi(options) {
             API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
             
             if (successLogType) {
-              log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
+              // 輸出成功日誌，但避免輸出連接成功的訊息
+              // log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
             }
-            
-            console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用簡單 fetch)`);
             
             return { 
               success: true, 
@@ -202,19 +187,17 @@ export async function callApi(options) {
             throw new Error(`HTTP 錯誤: ${response.status}`);
           }
         } catch (fetchError) {
-          console.warn(`使用簡單 fetch 請求失敗: ${fetchError.message}`);
-          // 不需要回退到 axios，繼續嘗試下一個環境
+          // 不輸出警告訊息
           throw fetchError;
         }
       } 
-      // POST 請求：只使用必要的標頭
+      // POST 請求處理類似，減少日誌輸出
       else if (method === 'POST') {
         try {
           const fetchOptions = {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
-              // 不添加任何其他標頭
             },
             credentials: 'omit',
             body: JSON.stringify(data)
@@ -228,10 +211,9 @@ export async function callApi(options) {
             API_CONFIG.isUsingProd = baseUrl === API_CONFIG.PROD;
             
             if (successLogType) {
-              log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
+              // 輸出成功日誌，但避免輸出連接成功的訊息
+              // log(successLogType, baseUrl === API_CONFIG.PROD ? 'PROD' : 'LOCAL');
             }
-            
-            console.log(`✅ 成功連接到 ${baseUrl} 環境 (使用簡單 fetch POST)`);
             
             return { 
               success: true, 
@@ -242,24 +224,25 @@ export async function callApi(options) {
             throw new Error(`HTTP 錯誤: ${response.status}`);
           }
         } catch (fetchPostError) {
-          console.warn(`使用簡單 fetch POST 請求失敗: ${fetchPostError.message}`);
+          // 不輸出警告訊息
           throw fetchPostError;
         }
       }
     } catch (error) {
       lastError = error;
-      console.warn(`❌ 無法連接到 ${baseUrl} 環境: ${error.message}`);
+      // 不輸出連接失敗的警告訊息
       continue;
     }
   }
   
   if (errorLogType) {
-    log(errorLogType, lastError?.message || '未知錯誤');
+    // 可以保留錯誤日誌，但格式更簡潔
+    // log(errorLogType, '請求失敗');
   }
   
   return { 
     success: false, 
-    error: lastError?.message || '所有 API 端點嘗試失敗',
+    error: lastError?.message || '請求失敗',
     env: API_CONFIG.getCurrentEnv()
   };
 }
@@ -292,57 +275,153 @@ export function clearLoggedMessages() {
 }
 
 // 同步筆記到服務器
-export async function syncNotesToServer(forcedSync = false) {
-  console.log('開始嘗試同步筆記到服務器...');
+export const syncNotesToServer = async (forceSync = false, urgent = false) => {
+  console.log(`執行筆記同步 (強制: ${forceSync}, 緊急: ${urgent})`);
   
   try {
-    // 從本地存儲獲取用戶 ID 和筆記
+    // 保存同步嘗試資訊
+    const now = Date.now();
+    localStorage.setItem('lastSyncAttempt', now.toString());
+    
+    // 從localStorage獲取筆記和用戶ID
     const userId = localStorage.getItem('userId');
-    const notesString = localStorage.getItem('memos');
-    
     if (!userId) {
-      console.warn('無法同步筆記：找不到用戶ID');
+      console.error('無法同步筆記: 未找到用戶ID');
       return false;
     }
     
-    if (!notesString) {
-      console.warn('無法同步筆記：找不到筆記數據');
-      return false;
-    }
-    
-    // 解析筆記數據
-    let notes;
+    // 獲取本地存儲的筆記
+    let notesToSync = [];
     try {
-      notes = JSON.parse(notesString);
-      console.log(`準備同步 ${notes.length} 條筆記`);
-    } catch (parseError) {
-      console.error('解析筆記數據失敗:', parseError);
+      const savedMemos = localStorage.getItem('memos');
+      if (savedMemos) {
+        notesToSync = JSON.parse(savedMemos);
+      } else {
+        console.warn('無可同步的筆記：本地存儲為空');
+      }
+    } catch (e) {
+      console.error('解析本地筆記出錯', e);
+      // 設置同步失敗標記
+      localStorage.setItem('syncFailed', 'true');
+      localStorage.setItem('syncFailReason', 'PARSE_ERROR');
       return false;
     }
     
-    // 使用 callApi 函數發送請求
-    const result = await callApi({
-      endpoint: '/api/notes/save',
-      method: 'POST',
-      data: { userId, notes },
-      timeout: 8000,
-      successLogType: LOG_TYPES.NOTES_SYNC_SUCCESS,
-      errorLogType: LOG_TYPES.NOTES_SYNC_ERROR,
-      tryBothEnvs: true
+    // 確保每個筆記都有lastModified屬性
+    notesToSync = notesToSync.map(note => {
+      if (!note.lastModified) {
+        return { ...note, lastModified: now };
+      }
+      return note;
     });
     
+    // 獲取被刪除的筆記
+    let deletedNotes = [];
+    try {
+      const deletedNotesStr = sessionStorage.getItem('deletedNotes');
+      if (deletedNotesStr) {
+        deletedNotes = JSON.parse(deletedNotesStr);
+        console.log(`找到 ${deletedNotes.length} 個待刪除的筆記`);
+      }
+    } catch (e) {
+      console.error('讀取刪除筆記列表失敗', e);
+    }
+    
+    // 設置同步狀態
+    localStorage.setItem('isSyncing', 'true');
+    
+    // 在本地保存一份同步前的備份
+    try {
+      sessionStorage.setItem('preSyncBackup', JSON.stringify({
+        notes: notesToSync,
+        deletedNotes,
+        timestamp: now
+      }));
+    } catch (e) {
+      console.warn('無法創建同步前備份', e);
+    }
+    
+    // 發起API請求
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/notes/save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        notes: notesToSync,
+        deletedNotes,
+        forceFullSync: forceSync,
+        immediateSync: urgent,
+        urgent: urgent,
+        lastSyncTime: localStorage.getItem('lastSyncTime') || '0'
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
     if (result.success) {
-      console.log(`✅ 筆記同步成功! 環境: ${result.env}`);
+      console.log(`✅ 筆記同步成功，筆記數: ${notesToSync.length}`);
+      
+      // 更新同步狀態
+      localStorage.setItem('lastSyncTime', now.toString());
+      localStorage.setItem('lastSuccessfulSync', now.toString());
+      localStorage.removeItem('isSyncing');
+      localStorage.removeItem('syncFailed');
+      localStorage.removeItem('syncFailReason');
+      localStorage.removeItem('needsSync');
+      
+      // 如果有刪除操作，清除會話存儲中的刪除記錄
+      if (deletedNotes.length > 0) {
+        sessionStorage.removeItem('deletedNotes');
+      }
+      
+      // 通過獲取最新的筆記來確認同步成功
+      try {
+        const latestResponse = await fetch(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/user/notes?userId=${userId}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (latestResponse.ok) {
+          const latestData = await latestResponse.json();
+          if (latestData.success && Array.isArray(latestData.notes)) {
+            console.log(`✓ 同步後確認: 伺服器有 ${latestData.notes.length} 條筆記`);
+            
+            // 這裡可以添加進一步的一致性檢查
+          }
+        }
+      } catch (confirmError) {
+        console.warn('同步後確認失敗，但同步本身成功', confirmError);
+      }
+      
       return true;
     } else {
-      console.error(`❌ 筆記同步失敗: ${result.error}`);
+      console.error('同步失敗: 伺服器返回失敗狀態', result);
+      localStorage.setItem('syncFailed', 'true');
+      localStorage.setItem('syncFailReason', 'SERVER_REJECTED');
+      localStorage.removeItem('isSyncing');
+      localStorage.setItem('needsSync', 'true');
       return false;
     }
   } catch (error) {
-    console.error('同步筆記時發生錯誤:', error);
+    console.error('同步過程中出錯', error);
+    localStorage.setItem('syncFailed', 'true');
+    localStorage.setItem('syncFailReason', error.message || 'UNKNOWN_ERROR');
+    localStorage.removeItem('isSyncing');
+    localStorage.setItem('needsSync', 'true');
     return false;
   }
-}
+};
 
 // 修改登出函數，在登出前同步筆記
 export async function logout() {
@@ -414,6 +493,12 @@ if (typeof window !== 'undefined') {
   window.useProd = () => API_CONFIG.switchToProd();
   window.toggleEnv = () => API_CONFIG.toggleEnv();
   window.preferLocal = (value) => API_CONFIG.setPreferLocal(value);
+  
+  // 新增簡便的切換命令
+  window.to = {
+    dev: () => API_CONFIG.switchToLocal(),
+    prod: () => API_CONFIG.switchToProd()
+  };
   
   // 添加登出和同步筆記功能到全局範圍
   window.logout = logout;

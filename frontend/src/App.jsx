@@ -12,6 +12,47 @@ import AltcoinIndex from "./AltcoinIndex";
 import { conditionalLog, conditionalError } from "./utils/logger";
 import { log, LOG_TYPES, getApiEndpoint, switchToProd, API_CONFIG, callApi } from "./utils/logger";
 
+// API 健康檢查函數
+const checkApiHealth = async () => {
+  // 只輸出一次開始檢查的訊息
+  const apiUrl = API_CONFIG.PROD;
+  const endpoints = ['/api/users', '/api/news', '/api/index'];
+  const results = {};
+  
+  // 使用 Promise.all 並行檢查所有端點，減少等待時間
+  await Promise.all(endpoints.map(async (endpoint) => {
+    try {
+      // 不輸出每個檢查的開始訊息
+      const response = await fetch(`${apiUrl}${endpoint}`, {
+        method: 'GET',
+        credentials: 'omit'
+      });
+      
+      results[endpoint] = response.ok;
+      // 不輸出每個檢查的成功或失敗訊息
+    } catch (error) {
+      results[endpoint] = false;
+      // 完全隱藏錯誤訊息
+    }
+  }));
+  
+  // 確保使用生產環境
+  API_CONFIG.isUsingProd = true;
+  API_CONFIG.preferLocal = false;
+  
+  const isHealthy = Object.values(results).some(r => r === true);
+  
+  // 只輸出一次最終結果
+  if (isHealthy) {
+    console.log("✅ API 健康檢查：生產環境連接正常");
+  }
+  
+  return {
+    healthy: isHealthy,
+    results
+  };
+};
+
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
   const formattedDate = date.toLocaleString("zh-TW", {
@@ -68,6 +109,7 @@ function App() {
   const [selectedMemo, setSelectedMemo] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingContent, setEditingContent] = useState("");
+  const [isEditMode, setIsEditMode] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [hasLoggedSuccess, setHasLoggedSuccess] = useState(false);
   const [showDevelopingModal, setShowDevelopingModal] = useState(false);
@@ -77,6 +119,95 @@ function App() {
   const slidingTimeoutRef = useRef(null);
   const [hasMoved, setHasMoved] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isAddingMemo, setIsAddingMemo] = useState(false);
+  const [apiHealthy, setApiHealthy] = useState(true);
+
+  // 保存筆記到本地存儲的輔助函數
+  const saveMemosToLocalStorage = (memos) => {
+    try {
+      localStorage.setItem('memos', JSON.stringify(memos));
+      console.log(`已保存 ${memos.length} 條筆記到本地存儲`);
+      return true;
+    } catch (error) {
+      console.error('無法保存筆記到本地存儲:', error);
+      return false;
+    }
+  };
+
+  // 當組件掛載時進行 API 健康檢查
+  useEffect(() => {
+    const runApiHealthCheck = async () => {
+      try {
+        const healthResult = await checkApiHealth();
+        setApiHealthy(healthResult.healthy);
+        
+        // 不重複輸出健康狀態訊息
+      } catch (error) {
+        setApiHealthy(false);
+        // 隱藏錯誤訊息
+      }
+    };
+    
+    runApiHealthCheck();
+  }, []);
+
+  // API 連接失敗時顯示的 UI
+  const ApiErrorFallback = () => {
+    const handleRetry = () => {
+      window.location.reload();
+    };
+
+    const handleUseLocal = () => {
+      API_CONFIG.switchToLocal();
+      window.location.reload();
+    };
+
+    const handleUseProd = () => {
+      API_CONFIG.switchToProd();
+      window.location.reload();
+    };
+
+    return (
+      <div className="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+        <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+          <h2 className="text-xl font-semibold mb-4 text-yellow-400">
+            連接失敗
+          </h2>
+          <p className="mb-6 text-gray-300">
+            無法連接到伺服器。這可能是因為:
+          </p>
+          <ul className="list-disc pl-5 mb-6 text-gray-300">
+            <li>伺服器目前不可用</li>
+            <li>本地伺服器未啟動</li>
+            <li>網絡連接問題</li>
+          </ul>
+          <div className="space-y-3">
+            <button
+              onClick={handleRetry}
+              className="bg-yellow-500 px-4 py-2 rounded-md w-full hover:bg-yellow-600 cursor-pointer transition-colors"
+            >
+              重試連接
+            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleUseLocal}
+                className="bg-gray-700 px-4 py-2 rounded-md flex-1 hover:bg-gray-600 cursor-pointer transition-colors"
+              >
+                使用本地伺服器
+              </button>
+              <button
+                onClick={handleUseProd}
+                className="bg-gray-700 px-4 py-2 rounded-md flex-1 hover:bg-gray-600 cursor-pointer transition-colors"
+              >
+                使用生產伺服器
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // 當登入狀態改變時，更新 localStorage
   useEffect(() => {
@@ -107,51 +238,47 @@ function App() {
       // 在頁面重新載入後，重新從伺服器獲取筆記資料
       const loadUserData = async () => {
         try {
-          const baseUrls = [
-            'http://localhost:3000',
-            'https://crypto-memo-production.up.railway.app'
-          ];
+          // 只使用生產環境 URL
+          const baseUrl = API_CONFIG.PROD;
+          console.log(`正在獲取用戶資料...`);
           
-          for (const baseUrl of baseUrls) {
-            try {
-              const response = await axios.get(`${baseUrl}/api/users`, { 
-                timeout: 5000 
-              });
+          try {
+            const response = await axios.get(`${baseUrl}/api/users`, { 
+              timeout: 5000 
+            });
+            
+            if (response.data && Array.isArray(response.data)) {
+              const currentUser = response.data.find(user => user.id === userId);
               
-              if (response.data && Array.isArray(response.data)) {
-                const currentUser = response.data.find(user => user.id === userId);
+              if (currentUser && currentUser.note) {
+                const localMemos = JSON.parse(localStorage.getItem('memos') || '[]');
+                const memoMap = {};
                 
-                if (currentUser && currentUser.note) {
-                  const localMemos = JSON.parse(localStorage.getItem('memos') || '[]');
-                  const memoMap = {};
-                  
-                  localMemos.forEach(memo => {
-                    if (!memoMap[memo.timestamp] || memo.timestamp > memoMap[memo.timestamp].timestamp) {
-                      memoMap[memo.timestamp] = memo;
-                    }
-                  });
-                  
-                  currentUser.note.forEach(memo => {
-                    if (!memoMap[memo.timestamp] || memo.timestamp > memoMap[memo.timestamp].timestamp) {
-                      memoMap[memo.timestamp] = memo;
-                    }
-                  });
-                  
-                  const mergedMemos = Object.values(memoMap).sort((a, b) => b.timestamp - a.timestamp);
-                  
-                  setMemos(mergedMemos);
-                  localStorage.setItem('memos', JSON.stringify(mergedMemos));
-                  
-                  syncNotesToServer(true);
-                  break;
-                }
+                localMemos.forEach(memo => {
+                  if (!memoMap[memo.timestamp] || memo.timestamp > memoMap[memo.timestamp].timestamp) {
+                    memoMap[memo.timestamp] = memo;
+                  }
+                });
+                
+                currentUser.note.forEach(memo => {
+                  if (!memoMap[memo.timestamp] || memo.timestamp > memoMap[memo.timestamp].timestamp) {
+                    memoMap[memo.timestamp] = memo;
+                  }
+                });
+                
+                const mergedMemos = Object.values(memoMap).sort((a, b) => b.timestamp - a.timestamp);
+                
+                setMemos(mergedMemos);
+                localStorage.setItem('memos', JSON.stringify(mergedMemos));
+                
+                syncNotesToServer(true);
               }
-            } catch (error) {
-              continue;
             }
+          } catch (error) {
+            // 靜默處理錯誤，不在控制台輸出
           }
         } catch (error) {
-          console.error("❌ 無法獲取用戶資料");
+          // 靜默處理錯誤，不在控制台輸出
         }
       };
       
@@ -163,65 +290,32 @@ function App() {
     if (isLoggedIn) {
       // 完全重寫新聞獲取邏輯，專門處理生產環境問題
       const fetchNews = async () => {
-        console.log('手動刷新新聞...');
-        
         try {
-          // 嘗試使用當前環境獲取新聞
-          const currentUrl = getApiEndpoint();
-          console.log(`首先嘗試從當前環境獲取: ${currentUrl}/api/news`);
+          // 直接使用生產環境 URL
+          const baseUrl = API_CONFIG.PROD;
           
           try {
-            const response = await axios.get(`${currentUrl}/api/news`, { 
-              timeout: 8000,
+            const response = await fetch(`${baseUrl}/api/news`, {
+              method: 'GET',
               headers: {
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
               }
             });
             
-            if (response.data && Array.isArray(response.data)) {
-              console.log(`✅ 成功從 ${currentUrl} 獲取新聞，找到 ${response.data.length} 條記錄`);
-              setNews(response.data);
-              return;
+            if (response.ok) {
+              const data = await response.json();
+              if (data && Array.isArray(data)) {
+                console.log(`✓ 成功獲取新聞資料`);
+                setNews(data);
+                return;
+              }
             }
           } catch (error) {
-            console.warn(`從當前環境獲取新聞失敗: ${error.message}`);
+            // 靜默處理錯誤，不在控制台輸出
           }
           
-          // 如果當前環境失敗，嘗試回退到指定的環境
-          const fallbackUrls = [
-            'http://localhost:3000',
-            'https://crypto-memo-production.up.railway.app'
-          ];
-          
-          for (const baseUrl of fallbackUrls) {
-            try {
-              console.log(`嘗試從回退環境獲取: ${baseUrl}/api/news`);
-              
-              const response = await fetch(`${baseUrl}/api/news`, {
-                method: 'GET',
-                headers: {
-                  'Cache-Control': 'no-cache',
-                  'Pragma': 'no-cache'
-                }
-              });
-              
-              if (response.ok) {
-                const data = await response.json();
-                if (data && Array.isArray(data)) {
-                  console.log(`✅ 成功從回退環境 ${baseUrl} 獲取新聞，找到 ${data.length} 條記錄`);
-                  setNews(data);
-                  return;
-                }
-              }
-            } catch (error) {
-              console.warn(`從回退環境 ${baseUrl} 獲取新聞失敗: ${error.message}`);
-              continue;
-            }
-          }
-          
-          // 如果所有嘗試都失敗，使用本地備用數據
-          console.error('所有獲取新聞嘗試都失敗，使用備用數據');
+          // 如果失敗，使用備用數據
           setNews([{
             id: 1,
             titleZh: "無法連接到新聞服務",
@@ -230,14 +324,7 @@ function App() {
             timestamp: Date.now()
           }]);
         } catch (error) {
-          console.error('獲取新聞時發生未處理的錯誤:', error);
-          setNews([{
-            id: 1,
-            titleZh: "無法連接到新聞服務",
-            contentZh: "發生了未知錯誤，請稍後再試。",
-            timeago: "剛才",
-            timestamp: Date.now()
-          }]);
+          // 靜默處理錯誤，不在控制台輸出
         }
       };
       
@@ -255,29 +342,25 @@ function App() {
       
       // 仍然嘗試獲取指數數據，但使用單獨的函數
       const fetchIndexData = async () => {
-        const baseUrls = [
-          'http://localhost:3000',
-          'https://crypto-memo-production.up.railway.app'
-        ];
-        
-        for (const baseUrl of baseUrls) {
-          try {
-            await axios.get(`${baseUrl}/api/index`, { 
-              timeout: 5000,
-              headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-              }
-            });
-            console.log(`✅ 成功從 ${baseUrl} 獲取指數數據`);
+        try {
+          // 直接使用生產環境 URL
+          const baseUrl = API_CONFIG.PROD;
+          
+          const response = await fetch(`${baseUrl}/api/index`, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          if (response.ok) {
+            // 成功獲取數據，但不輸出日誌
             return;
-          } catch (error) {
-            console.warn(`從 ${baseUrl} 獲取指數數據失敗: ${error.message}`);
-            continue;
           }
+        } catch (error) {
+          // 靜默處理錯誤，不在控制台輸出
         }
-        
-        console.error('所有獲取指數數據的嘗試都失敗');
       };
       
       fetchIndexData().catch(error => {
@@ -327,115 +410,206 @@ function App() {
     }
   };
 
-  const handleAddMemo = () => {
-    if (isNoteModalOpen) {
-      // 從筆記視窗新增
-      if (noteTitle.trim() || memo.trim()) {
-        const newMemo = {
-          title: noteTitle.trim() || memo.trim(),
-          content: memo.trim(),
-          timestamp: Date.now(),
-        };
-        
-        // 更新狀態和本地存儲
-        const updatedMemos = [newMemo, ...memos];
-        setMemos(updatedMemos);
-        localStorage.setItem('memos', JSON.stringify(updatedMemos));
-        
-        setNoteTitle("");
-        setMemo("");
-        setIsNoteModalOpen(false);
-        
-        // 觸發同步
-        syncNotesToServer(true);
+  // 新增一個立即保存筆記狀態的函數
+  const saveMemosState = (updatedMemos) => {
+    // 保存到localStorage
+    localStorage.setItem('memos', JSON.stringify(updatedMemos));
+    // 保存到sessionStorage，作為備份和最新狀態
+    sessionStorage.setItem('pendingMemos', JSON.stringify(updatedMemos));
+    // 設置狀態
+    setMemos(updatedMemos);
+    // 標記有未保存的更改
+    setHasUnsavedChanges(true);
+    // 設置需要同步的標記
+    localStorage.setItem('needsSync', 'true');
+    
+    // 立即執行同步而不是等待，使用緊急同步模式
+    setTimeout(() => {
+      syncNotesToServer(true, true).then(success => {
+        if (success) {
+          console.log('筆記狀態已成功使用緊急模式同步到服務器');
+          setHasUnsavedChanges(false);
+        } else {
+          console.error('無法立即同步筆記，將在稍後重試');
+        }
+      });
+    }, 100); // 很短的延遲，讓UI先更新
+  };
+
+  const handleAddMemo = async (data) => {
+    console.log("添加新筆記", data);
+
+    // 防止重複提交
+    if (isAddingMemo) {
+      console.warn("已有筆記添加請求正在處理中...");
+      return;
+    }
+
+    try {
+      setIsAddingMemo(true);
+      
+      // 生成新筆記
+      const timestamp = Date.now().toString();
+      const newMemo = {
+        ...data,
+        timestamp,
+        lastModified: Date.now()
+      };
+      
+      console.log("生成新筆記", newMemo);
+      
+      // 更新本地狀態
+      const updatedMemos = [...memos, newMemo];
+      setMemos(updatedMemos);
+      
+      // 立即保存到本地存儲
+      saveMemosToLocalStorage(updatedMemos);
+      
+      // 在session storage中設置新筆記標記，以防刷新頁面
+      try {
+        let pendingNewMemos = [];
+        const pendingMemosStr = sessionStorage.getItem('pendingNewMemos');
+        if (pendingMemosStr) {
+          pendingNewMemos = JSON.parse(pendingMemosStr);
+        }
+        pendingNewMemos.push(newMemo);
+        sessionStorage.setItem('pendingNewMemos', JSON.stringify(pendingNewMemos));
+      } catch (e) {
+        console.error("無法保存待處理的新筆記到session storage", e);
       }
-    } else {
-      // 快速筆記
-      if (memo.trim()) {
-        const newMemo = {
-          title: memo.trim(),
-          content: "",
-          timestamp: Date.now(),
-        };
-        
-        // 更新狀態和本地存儲
-        const updatedMemos = [newMemo, ...memos];
-        setMemos(updatedMemos);
-        localStorage.setItem('memos', JSON.stringify(updatedMemos));
-        
-        setMemo("");
-        
-        // 觸發同步
-        syncNotesToServer(true);
-      } else {
-        setIsNoteModalOpen(true);
+      
+      // 設置需要同步標記
+      localStorage.setItem('needsSync', 'true');
+      
+      // 立即執行同步到伺服器
+      try {
+        console.log("正在嘗試立即同步到伺服器");
+        const syncSuccess = await forceSyncToServer();
+        if (syncSuccess) {
+          console.log("✅ 新筆記立即同步成功");
+          // 清除待處理的新筆記標記
+          sessionStorage.removeItem('pendingNewMemos');
+        } else {
+          console.warn("⚠️ 新筆記立即同步失敗，將在下次啟動時嘗試");
+        }
+      } catch (syncError) {
+        console.error("新筆記同步出錯", syncError);
       }
+      
+      // 立即從服務器獲取最新數據，以確保數據一致性
+      try {
+        await fetchLatestNotesFromServer();
+      } catch (fetchError) {
+        console.error("獲取最新筆記失敗", fetchError);
+      }
+      
+      return newMemo;
+    } catch (error) {
+      console.error("添加筆記過程出錯", error);
+      throw error;
+    } finally {
+      setIsAddingMemo(false);
     }
   };
 
-  const handleDeleteMemo = (indexToDelete) => {
-    // 刪除備忘錄
-    const updatedMemos = memos.filter((_, index) => index !== indexToDelete);
-    setMemos(updatedMemos);
-    localStorage.setItem('memos', JSON.stringify(updatedMemos));
-
-    // 清除對應的滑動位置狀態
-    setSlidePosition((prev) => {
-      const newState = { ...prev };
-      delete newState[indexToDelete];
-      // 重新排序剩餘的索引
-      const updated = {};
-      Object.keys(newState).forEach((key) => {
-        const currentIndex = parseInt(key);
-        if (currentIndex > indexToDelete) {
-          updated[currentIndex - 1] = newState[key];
-        } else {
-          updated[currentIndex] = newState[key];
-        }
-      });
-      return updated;
-    });
+  const handleDeleteMemo = async (timestamp) => {
+    console.log("準備刪除筆記", timestamp);
     
-    // 觸發同步
-    syncNotesToServer(true);
+    if (!timestamp) {
+      console.error("無法刪除：缺少時間戳");
+      return;
+    }
+
+    // 找到要刪除的筆記
+    const memoToDelete = memos.find(memo => memo.timestamp === timestamp);
+    if (!memoToDelete) {
+      console.error("找不到要刪除的筆記", timestamp);
+      return;
+    }
+    
+    // 在刪除前先保存被刪除的筆記，以便在同步時通知伺服器
+    try {
+      let deletedNotes = [];
+      const deletedNotesStr = sessionStorage.getItem('deletedNotes');
+      if (deletedNotesStr) {
+        try {
+          deletedNotes = JSON.parse(deletedNotesStr);
+        } catch (e) {
+          console.error("解析已刪除筆記失敗", e);
+          deletedNotes = [];
+        }
+      }
+      
+      // 確保不重複添加
+      if (!deletedNotes.some(note => note.timestamp === memoToDelete.timestamp)) {
+        deletedNotes.push(memoToDelete);
+        sessionStorage.setItem('deletedNotes', JSON.stringify(deletedNotes));
+        console.log("已將筆記標記為待刪除", memoToDelete);
+      }
+    } catch (e) {
+      console.error("保存待刪除筆記失敗", e);
+    }
+    
+    // 從本地狀態中移除
+    const updatedMemos = memos.filter(memo => memo.timestamp !== timestamp);
+    
+    // 更新狀態
+    console.log("更新後的筆記數量", updatedMemos.length);
+    setMemos(updatedMemos);
+    
+    // 立即保存到本地存儲
+    saveMemosToLocalStorage(updatedMemos);
+    
+    // 設置需要同步標記
+    localStorage.setItem('needsSync', 'true');
+    
+    // 立即執行同步到伺服器
+    try {
+      console.log("嘗試立即同步刪除操作到伺服器");
+      const syncSuccess = await forceSyncToServer();
+      if (syncSuccess) {
+        console.log("✅ 刪除操作立即同步成功");
+      } else {
+        console.warn("⚠️ 刪除操作立即同步失敗，將在下次啟動時嘗試");
+      }
+    } catch (syncError) {
+      console.error("刪除同步出錯", syncError);
+    }
+    
+    // 立即從服務器獲取最新數據
+    try {
+      await fetchLatestNotesFromServer();
+    } catch (fetchError) {
+      console.error("獲取最新筆記失敗", fetchError);
+    }
   };
 
-  // 新增處理新聞點擊的函數
   const handleNewsClick = (newsItem) => {
     setSelectedNews(newsItem);
   };
 
-  // 新增返回新聞列表的函數
   const handleBackToList = () => {
     setSelectedNews(null);
   };
 
-  // 修改 NewsDetail 組件
   const NewsDetail = ({ news }) => {
-    // 添加選擇模態窗狀態
     const [showSelectionModal, setShowSelectionModal] = useState(false);
-    // 修改選擇的區塊狀態，只預設勾選簡介和重點摘要
     const [selectedSections, setSelectedSections] = useState({
-      intro: true,      // 預設勾選
-      summary: true,    // 預設勾選
-      detail: false,    // 預設不勾選
-      original: false,  // 預設不勾選
-      source: false     // 預設不勾選
+      intro: true,
+      summary: true,
+      detail: false,
+      original: false,
+      source: false
     });
 
-    // 在 NewsDetail 組件中修改 handleAddToNote 函數
     const handleAddToNote = () => {
-      // 先顯示選擇模態窗
       setShowSelectionModal(true);
     };
     
-    // 處理最終確認加入筆記
     const handleConfirmAddToNote = () => {
-      // 檢查是否至少選擇了一個區塊
       const hasSelection = Object.values(selectedSections).some(value => value);
       
       if (!hasSelection) {
-        // 如果沒有選擇任何區塊，至少添加標題
         setEditingTitle(news.titleZh);
         setEditingContent("");
         setIsNoteModalOpen(true);
@@ -443,7 +617,6 @@ function App() {
         return;
       }
       
-      // 根據選擇的區塊構建內容
       let newsContent = '';
       
       if (selectedSections.intro) {
@@ -479,13 +652,12 @@ ${news.contentDetail}
 ${news.url}`;
       }
 
-      setEditingTitle(news.titleZh); // 標題仍然設定為新聞標題
-      setEditingContent(newsContent.trim()); // 但內容不包含標題
+      setEditingTitle(news.titleZh);
+      setEditingContent(newsContent.trim());
       setIsNoteModalOpen(true);
-      setShowSelectionModal(false); // 關閉選擇模態窗
+      setShowSelectionModal(false);
     };
     
-    // 選擇區塊模態窗組件
     const SelectionModal = () => (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-gray-800 p-4 md:p-6 rounded-lg w-full max-w-md">
@@ -576,7 +748,6 @@ ${news.url}`;
 
     return (
       <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-        {/* 修改標題區塊的排列方式 - 在小螢幕上使用垂直排列 */}
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4">
             <button
@@ -595,7 +766,6 @@ ${news.url}`;
           <h2 className="text-xl font-semibold">{news.titleZh}</h2>
         </div>
 
-        {/* 調整內容區塊 - 更好的間距和捲動 */}
         <div className="space-y-4 md:space-y-6">
           <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
             <h3 className="text-yellow-400 mb-2">簡介</h3>
@@ -641,7 +811,6 @@ ${news.url}`;
           </div>
         </div>
         
-        {/* 選擇區塊模態窗 */}
         {showSelectionModal && <SelectionModal />}
       </div>
     );
@@ -716,7 +885,6 @@ ${news.url}`;
     }
     touchStartX.current = null;
     
-    // 設置一個短暫的延遲，防止滑動結束後立即觸發點擊
     if (slidingTimeoutRef.current) {
       clearTimeout(slidingTimeoutRef.current);
     }
@@ -742,7 +910,6 @@ ${news.url}`;
     }
     touchStartX.current = null;
     
-    // 設置一個短暫的延遲，防止滑動結束後立即觸發點擊
     if (slidingTimeoutRef.current) {
       clearTimeout(slidingTimeoutRef.current);
     }
@@ -751,28 +918,28 @@ ${news.url}`;
     }, 100);
   };
 
-  // 在 App 函數內新增處理 Enter 鍵的函數
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       handleLogin();
     }
   };
 
-  // 修改 handleMemoClick 函數
-  const handleMemoClick = (memo) => {
+  const handleMemoClick = (memo, index) => {
+    setSelectedMemo(index);
     setEditingTitle(memo.title || "");
     setEditingContent(memo.content || "");
+    setIsEditMode(true);
     setIsNoteModalOpen(true);
   };
 
-  // 修改筆記視窗關閉按鈕的處理函數
   const handleCloseNoteModal = () => {
     setIsNoteModalOpen(false);
-    setEditingTitle("");    // 清空標題
-    setEditingContent("");  // 清空內容
+    setEditingTitle("");
+    setEditingContent("");
+    setSelectedMemo(null);
+    setIsEditMode(false);
   };
 
-  // 修改筆記視窗組件
   const NoteModal = () => {
     const [localTitle, setLocalTitle] = useState(editingTitle);
     const [localContent, setLocalContent] = useState(editingContent);
@@ -782,27 +949,58 @@ ${news.url}`;
       setLocalContent(editingContent);
     }, [editingTitle, editingContent]);
     
-    const handleSaveNote = () => {
+    const handleSaveNote = async () => {
       if (localTitle.trim() || localContent.trim()) {
-        const newMemo = {
+        const noteData = {
           title: localTitle.trim() || localContent.trim(),
           content: localContent.trim(),
-          timestamp: Date.now(),
+          timestamp: isEditMode && selectedMemo !== null ? memos[selectedMemo].timestamp : Date.now(),
         };
         
-        // 更新狀態和本地存儲
-        const updatedMemos = [newMemo, ...memos];
-        setMemos(updatedMemos);
+        let updatedMemos;
+        if (isEditMode && selectedMemo !== null) {
+          updatedMemos = [...memos];
+          updatedMemos[selectedMemo] = noteData;
+        } else {
+          updatedMemos = [noteData, ...memos];
+        }
+        
         localStorage.setItem('memos', JSON.stringify(updatedMemos));
+        setMemos(updatedMemos);
+        setHasUnsavedChanges(true);
         
         setIsNoteModalOpen(false);
         setEditingTitle("");
         setEditingContent("");
+        setSelectedMemo(null);
+        setIsEditMode(false);
         
-        // 觸發同步
-        syncNotesToServer(true);
+        try {
+          const syncResult = await syncNotesToServer(true);
+          if (syncResult) {
+            setHasUnsavedChanges(false);
+          }
+        } catch (error) {
+          console.error('同步失敗，將在下次重新整理時重試');
+        }
       }
     };
+
+    useEffect(() => {
+      const handleBeforeUnload = (e) => {
+        if (hasUnsavedChanges) {
+          const message = "您有未保存的筆記更改，確定要離開嗎？";
+          e.returnValue = message;
+          return message;
+        }
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }, [hasUnsavedChanges]);
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -811,7 +1009,9 @@ ${news.url}`;
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg md:text-xl font-semibold text-yellow-400">新增筆記</h2>
+            <h2 className="text-lg md:text-xl font-semibold text-yellow-400">
+              {isEditMode ? '編輯筆記' : '新增筆記'}
+            </h2>
             <button
               onClick={handleCloseNoteModal}
               className="text-gray-400 hover:text-white cursor-pointer"
@@ -843,7 +1043,7 @@ ${news.url}`;
               onClick={handleSaveNote}
               className="px-4 md:px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
             >
-              儲存
+              {isEditMode ? '更新' : '儲存'}
             </button>
           </div>
         </div>
@@ -851,19 +1051,18 @@ ${news.url}`;
     );
   };
 
-  // 修改處理儀表板添加到筆記的函數
-  const handleGaugeAddToNote = (gaugeStatus, type = '恐懼貪婪') => {  // 添加 type 參數
+  const handleGaugeAddToNote = (gaugeStatus, type = '恐懼貪婪') => {
     setEditingTitle(`${type}指數快照`);
     setEditingContent(gaugeStatus);
+    setIsEditMode(false);
+    setSelectedMemo(null);
     setIsNoteModalOpen(true);
   };
 
-  // 添加處理"更多新聞"按鈕點擊的函數
   const handleMoreNewsClick = () => {
     setShowDevelopingModal(true);
   };
   
-  // 添加開發中提示模態窗組件
   const DevelopingModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 p-4 md:p-6 rounded-lg w-full max-w-md">
@@ -881,16 +1080,12 @@ ${news.url}`;
     </div>
   );
 
-  // 添加新數據按鈕點擊處理函數
   const handleAddNewDataClick = () => {
     setShowDevelopingModal(true);
   };
   
-  // 新增「添加新數據」組件
   const AddNewDataButton = () => {
-    // 添加一個空的外部點擊處理函數，防止點擊圖標以外區域觸發事件
     const handleContainerClick = (e) => {
-      // 防止點擊事件冒泡
       e.stopPropagation();
     };
 
@@ -898,10 +1093,9 @@ ${news.url}`;
       <div 
         className="w-full bg-gray-700 p-4 rounded-lg"
         onClick={handleContainerClick}
-        style={{ aspectRatio: "1/1" }} // 確保組件為正方形
+        style={{ aspectRatio: "1/1" }}
       >
         <div className="flex flex-col items-center justify-center h-full">
-          {/* 只對圓形區域添加點擊事件 */}
           <div 
             className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center mb-2 cursor-pointer hover:bg-yellow-600 transition-colors"
             onClick={handleAddNewDataClick}
@@ -914,234 +1108,347 @@ ${news.url}`;
     );
   };
 
-  // 添加同步函數來解決重新整理問題
-  const handleSyncAndReload = async () => {
-    // 先進行同步
-    const success = await syncNotesToServer(true);
-    
-    // 無論同步成功與否，確保筆記已保存至 localStorage
-    localStorage.setItem('memos', JSON.stringify(memos));
-    
-    // 設置一個快速恢復的標誌
-    sessionStorage.setItem('quickRestore', 'true');
-    
-    // 重新載入頁面
-    window.location.reload();
-  };
-
-  // 修改頁面載入時的快速恢復邏輯
-  useEffect(() => {
-    const quickRestore = sessionStorage.getItem('quickRestore');
-    if (quickRestore === 'true' && isLoggedIn) {
-      // 清除快速恢復標誌
-      sessionStorage.removeItem('quickRestore');
-      
-      // 直接從 localStorage 恢復筆記
-      const savedMemos = localStorage.getItem('memos');
-      if (savedMemos) {
-        try {
-          const parsedMemos = JSON.parse(savedMemos);
-          setMemos(parsedMemos);
-        } catch (error) {
-          console.error('解析本地筆記數據失敗:', error);
-        }
-      }
-    }
-  }, []);
-
-  // 添加 componentDidMount 生命週期模擬，確保首次載入時同步
-  useEffect(() => {
-    const initialSync = async () => {
-      if (isLoggedIn && userId) {
-        try {
-          // 先嘗試從 API 載入最新筆記
-          const result = await callApi({
-            endpoint: '/api/users',
-            method: 'GET',
-            timeout: 5000
-          });
-          
-          if (result.success) {
-            const currentUser = result.data.find(user => user.id === userId);
-            if (currentUser && currentUser.note) {
-              // 將服務器筆記與本地筆記合併
-              const localMemos = JSON.parse(localStorage.getItem('memos') || '[]');
-              const memoMap = {};
-              
-              // 以時間戳為鍵，確保不重複
-              localMemos.forEach(memo => {
-                memoMap[memo.timestamp] = memo;
-              });
-              
-              currentUser.note.forEach(memo => {
-                if (!memoMap[memo.timestamp]) {
-                  memoMap[memo.timestamp] = memo;
-                }
-              });
-              
-              // 轉換回數組並按時間戳排序
-              const mergedMemos = Object.values(memoMap).sort((a, b) => b.timestamp - a.timestamp);
-              
-              // 更新狀態和 localStorage
-              setMemos(mergedMemos);
-              localStorage.setItem('memos', JSON.stringify(mergedMemos));
-            }
-          }
-        } catch (error) {
-          console.error('載入用戶筆記失敗:', error);
-        }
-      }
-    };
-    
-    initialSync();
-  }, [isLoggedIn, userId]);
-
-  // 修改 syncNotesToServer 函數以更穩健地處理同步
-  const syncNotesToServer = async (forcedSync = false) => {
+  const syncNotesToServer = async (forceSync = false, immediateSync = false) => {
     if (!isLoggedIn || !userId) return false;
-    if (memos.length === 0 && !forcedSync) return false;
+    if (memos.length === 0 && !forceSync) return false;
+    if (isSyncing) return false;
     
     setIsSyncing(true);
     
     try {
-      // 確保備份當前筆記到本地
-      localStorage.setItem('memos', JSON.stringify(memos));
+      sessionStorage.setItem('syncInProgress', 'true');
+      sessionStorage.setItem('pendingMemos', JSON.stringify(memos));
+      sessionStorage.setItem('syncStartTime', Date.now().toString());
       
-      // 進行服務器同步
+      const memosWithTimestamp = memos.map(memo => ({
+        ...memo,
+        lastModified: memo.lastModified || Date.now()
+      }));
+      
       const result = await callApi({
         endpoint: '/api/notes/save',
         method: 'POST',
         data: { 
           userId, 
-          notes: memos
+          notes: memosWithTimestamp,
+          immediateSync
         },
-        successLogType: LOG_TYPES.NOTES_SYNC_SUCCESS,
-        errorLogType: LOG_TYPES.NOTES_SYNC_ERROR,
-        timeout: 10000 // 增加超時時間確保可以完成
+        timeout: 15000
       });
       
       if (result.success) {
         setLastSyncTime(Date.now());
-        console.log('筆記同步成功');
-      } else {
-        console.error('筆記同步失敗:', result.error);
+        localStorage.setItem('lastSyncTime', Date.now().toString());
+        sessionStorage.setItem('lastSyncTime', Date.now().toString());
+        localStorage.removeItem('needsSync');
+        sessionStorage.removeItem('syncInProgress');
+        
+        sessionStorage.setItem('lastSuccessfulSync', JSON.stringify(memos));
+        localStorage.setItem('memos', JSON.stringify(memos));
+        
+        setHasUnsavedChanges(false);
+        console.log('✓ 筆記同步成功');
+        return true;
       }
       
-      setIsSyncing(false);
-      return result.success;
-    } catch (error) {
-      console.error('同步筆記過程中發生錯誤:', error);
-      setIsSyncing(false);
+      localStorage.setItem('needsSync', 'true');
+      sessionStorage.setItem('syncFailed', 'true');
       return false;
+    } catch (error) {
+      localStorage.setItem('needsSync', 'true');
+      sessionStorage.setItem('syncFailed', 'true');
+      return false;
+    } finally {
+      setIsSyncing(false);
+      sessionStorage.removeItem('syncInProgress');
     }
   };
-
-  // 修改 fetchNews 函數，增強錯誤處理
-  const fetchNews = async () => {
-    console.log('手動刷新新聞...');
+  
+  // 強制同步到伺服器的函數
+  const forceSyncToServer = async () => {
+    if (!isLoggedIn || !userId) return false;
+    
+    console.log('執行強制同步到伺服器...');
     
     try {
-      // 嘗試使用當前環境獲取新聞
-      const currentUrl = getApiEndpoint();
-      console.log(`首先嘗試從當前環境獲取: ${currentUrl}/api/news`);
+      // 儲存當前狀態到會話存儲
+      sessionStorage.setItem('forceSyncInProgress', 'true');
       
+      // 獲取本地儲存的筆記
+      let notesToSync = [];
       try {
-        const response = await axios.get(`${currentUrl}/api/news`, { 
-          timeout: 8000,
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        
-        if (response.data && Array.isArray(response.data)) {
-          console.log(`✅ 成功從 ${currentUrl} 獲取新聞，找到 ${response.data.length} 條記錄`);
-          setNews(response.data);
-          return;
+        const savedMemos = localStorage.getItem('memos');
+        if (savedMemos) {
+          notesToSync = JSON.parse(savedMemos);
         }
-      } catch (error) {
-        console.warn(`從當前環境獲取新聞失敗: ${error.message}`);
+      } catch (e) {
+        console.error('解析本地筆記出錯', e);
+        return false;
       }
       
-      // 如果當前環境失敗，嘗試回退到指定的環境
-      const fallbackUrls = [
-        'http://localhost:3000',
-        'https://crypto-memo-production.up.railway.app'
+      // 獲取被刪除的筆記
+      let deletedNotes = [];
+      try {
+        const deletedNotesStr = sessionStorage.getItem('deletedNotes');
+        if (deletedNotesStr) {
+          deletedNotes = JSON.parse(deletedNotesStr);
+          console.log(`找到 ${deletedNotes.length} 個待刪除的筆記`);
+        }
+      } catch (e) {
+        console.error('讀取刪除筆記列表失敗', e);
+      }
+      
+      // 設置筆記最後修改時間
+      const memosWithTimestamp = notesToSync.map(memo => ({
+        ...memo,
+        lastModified: memo.lastModified || Date.now()
+      }));
+      
+      // 嘗試使用 callApi 函數
+      try {
+        const result = await callApi({
+          endpoint: '/api/notes/save',
+          method: 'POST',
+          data: { 
+            userId, 
+            notes: memosWithTimestamp,
+            deletedNotes,
+            forceFullSync: true,
+            immediateSync: true,
+            urgent: true
+          },
+          timeout: 15000
+        });
+        
+        if (result.success) {
+          console.log('✅ 強制同步成功');
+          
+          // 更新同步狀態
+          localStorage.setItem('lastSyncTime', Date.now().toString());
+          localStorage.removeItem('needsSync');
+          
+          // 如果有刪除操作並同步成功，清除會話存儲中的刪除記錄
+          if (deletedNotes.length > 0) {
+            sessionStorage.removeItem('deletedNotes');
+          }
+          
+          return true;
+        } else {
+          // 如果 callApi 失敗，嘗試直接使用 fetch
+          console.warn('callApi 同步失敗，嘗試使用直接 fetch 方法');
+        }
+      } catch (callApiError) {
+        console.warn('callApi 執行出錯，嘗試使用直接 fetch 方法', callApiError);
+      }
+      
+      // 如果 callApi 失敗，嘗試直接使用 fetch API
+      console.log('嘗試使用直接 fetch 同步筆記...');
+      
+      // 嘗試兩個可能的 API 端點
+      const apiUrls = [
+        API_CONFIG.LOCAL, 
+        API_CONFIG.PROD
       ];
       
-      for (const baseUrl of fallbackUrls) {
+      for (const baseUrl of apiUrls) {
         try {
-          console.log(`嘗試從回退環境獲取: ${baseUrl}/api/news`);
+          console.log(`嘗試向 ${baseUrl}/api/notes/save 同步筆記...`);
           
-          const response = await fetch(`${baseUrl}/api/news`, {
-            method: 'GET',
+          const response = await fetch(`${baseUrl}/api/notes/save`, {
+            method: 'POST',
             headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              userId, 
+              notes: memosWithTimestamp,
+              deletedNotes,
+              forceFullSync: true,
+              immediateSync: true,
+              urgent: true
+            })
           });
           
           if (response.ok) {
-            const data = await response.json();
-            if (data && Array.isArray(data)) {
-              console.log(`✅ 成功從回退環境 ${baseUrl} 獲取新聞，找到 ${data.length} 條記錄`);
-              setNews(data);
-              return;
+            const result = await response.json();
+            
+            if (result.success) {
+              console.log(`✅ 通過 ${baseUrl} 強制同步成功`);
+              
+              // 更新同步狀態
+              localStorage.setItem('lastSyncTime', Date.now().toString());
+              localStorage.removeItem('needsSync');
+              
+              // 如果有刪除操作並同步成功，清除會話存儲中的刪除記錄
+              if (deletedNotes.length > 0) {
+                sessionStorage.removeItem('deletedNotes');
+              }
+              
+              return true;
             }
           }
-        } catch (error) {
-          console.warn(`從回退環境 ${baseUrl} 獲取新聞失敗: ${error.message}`);
+        } catch (fetchError) {
+          console.warn(`通過 ${baseUrl} 直接同步失敗:`, fetchError);
           continue;
         }
       }
       
-      // 如果所有嘗試都失敗，使用本地備用數據
-      console.error('所有獲取新聞嘗試都失敗，使用備用數據');
-      setNews([{
-        id: 1,
-        titleZh: "無法連接到新聞服務",
-        contentZh: "目前無法獲取最新新聞，請稍後再試。",
-        timeago: "剛才",
-        timestamp: Date.now()
-      }]);
+      // 如果所有嘗試都失敗
+      console.error('所有同步嘗試都失敗');
+      return false;
     } catch (error) {
-      console.error('獲取新聞時發生未處理的錯誤:', error);
-      setNews([{
-        id: 1,
-        titleZh: "無法連接到新聞服務",
-        contentZh: "發生了未知錯誤，請稍後再試。",
-        timeago: "剛才",
-        timestamp: Date.now()
-      }]);
+      console.error('強制同步過程中出錯', error);
+      return false;
+    } finally {
+      sessionStorage.removeItem('forceSyncInProgress');
+    }
+  };
+  
+  // 從伺服器獲取最新筆記的函數
+  const fetchLatestNotesFromServer = async () => {
+    if (!isLoggedIn || !userId) return false;
+    
+    console.log('從伺服器獲取最新筆記...');
+    
+    try {
+      // 使用callApi函數獲取用戶筆記，保持一致性
+      const result = await callApi({
+        endpoint: `/api/users`,
+        method: 'GET',
+        timeout: 10000
+      });
+      
+      if (result.success && result.data && Array.isArray(result.data)) {
+        // 找到當前用戶的數據
+        const currentUser = result.data.find(user => user.id === userId);
+        
+        if (currentUser && Array.isArray(currentUser.note)) {
+          console.log(`✅ 成功從伺服器獲取 ${currentUser.note.length} 條筆記`);
+          
+          // 更新本地存儲和狀態
+          localStorage.setItem('memos', JSON.stringify(currentUser.note));
+          setMemos(currentUser.note);
+          
+          // 更新最後同步時間
+          setLastSyncTime(Date.now());
+          localStorage.setItem('lastSyncTime', Date.now().toString());
+          
+          return true;
+        } else {
+          console.warn('找不到當前用戶的筆記數據');
+          return false;
+        }
+      } else {
+        // 如果API返回失敗或格式不正確
+        console.warn('伺服器返回的筆記格式不正確或API失敗');
+        return false;
+      }
+    } catch (error) {
+      console.error('獲取伺服器筆記失敗:', error);
+      return false;
     }
   };
 
-  // 添加定期自動同步
   useEffect(() => {
-    if (isLoggedIn && userId) {
-      // 登入後立即同步一次
-      syncNotesToServer(true);
-      
-      // 設置定期同步
-      const syncInterval = setInterval(() => {
-        syncNotesToServer();
-      }, 5 * 60 * 1000); // 每5分鐘同步一次
-      
-      return () => clearInterval(syncInterval);
-    }
-  }, [isLoggedIn, userId]);
+    const syncTimeout = setTimeout(() => {
+      if (isLoggedIn && userId && memos.length > 0) {
+        localStorage.setItem('memos', JSON.stringify(memos));
+        
+        const timeSinceLastSync = Date.now() - (lastSyncTime || 0);
+        if (timeSinceLastSync > 5000) {
+          syncNotesToServer(false);
+        }
+      }
+    }, 1000);
 
-  // 添加頁面關閉前同步
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      syncNotesToServer(true);
-    };
+    return () => clearTimeout(syncTimeout);
+  }, [memos, isLoggedIn, userId]);
+
+  const loadSavedNotes = async () => {
+    console.log('載入已保存的筆記...');
     
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+    // 先直接從伺服器獲取最新筆記
+    if (userId) {
+      try {
+        console.log('嘗試從伺服器獲取最新筆記...');
+        
+        // 使用 fetch 直接請求用戶的最新筆記
+        const baseUrl = window.API_CONFIG?.getBaseUrl() || 'http://localhost:3000';
+        const response = await fetch(`${baseUrl}/api/user/notes?userId=${userId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'omit'
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.notes) {
+            console.log(`✅ 成功從伺服器獲取${result.notes.length}條筆記`);
+            setMemos(result.notes);
+            // 保存到本地存儲
+            localStorage.setItem('memos', JSON.stringify(result.notes));
+            // 更新同步時間
+            const syncTimestamp = Date.now().toString();
+            localStorage.setItem('lastSyncTime', syncTimestamp);
+            sessionStorage.setItem('lastSyncTime', syncTimestamp);
+            return;
+          }
+        }
+        console.log('從伺服器獲取筆記失敗，將嘗試從本地讀取...');
+      } catch (error) {
+        console.error('從伺服器獲取筆記時發生錯誤:', error);
+        console.log('將嘗試從本地讀取筆記...');
+      }
+    }
+    
+    // 如果從伺服器獲取失敗，則從本地存儲讀取
+    try {
+      let parsedMemos = [];
+      const savedMemos = localStorage.getItem('memos');
+      
+      if (savedMemos) {
+        try {
+          parsedMemos = JSON.parse(savedMemos);
+          console.log(`從本地存儲讀取了 ${parsedMemos.length} 條筆記`);
+        } catch (parseError) {
+          console.error('解析本地存儲的筆記失敗:', parseError);
+          parsedMemos = [];
+        }
+      }
+      
+      if (userId) {
+        // 合并本地筆記和伺服器筆記
+        const mergedMemos = await mergeMemos(parsedMemos, []);
+        setMemos(mergedMemos);
+      } else {
+        setMemos(parsedMemos);
+      }
+    } catch (error) {
+      console.error('讀取本地存儲的筆記時發生錯誤:', error);
+      setMemos([]);
+    }
+  };
 
-  // 修改登入後的筆記載入邏輯
+  const mergeMemos = (localMemos, serverMemos) => {
+    const memoMap = new Map();
+    
+    localMemos.forEach(memo => {
+      memoMap.set(memo.timestamp, memo);
+    });
+    
+    serverMemos.forEach(memo => {
+      if (!memoMap.has(memo.timestamp) || 
+          memo.lastModified > memoMap.get(memo.timestamp).lastModified) {
+        memoMap.set(memo.timestamp, memo);
+      }
+    });
+    
+    return Array.from(memoMap.values())
+      .sort((a, b) => b.timestamp - a.timestamp);
+  };
+
   useEffect(() => {
     if (isLoggedIn && userId) {
       const loadUserNotes = async () => {
@@ -1163,23 +1470,132 @@ ${news.url}`;
     }
   }, [isLoggedIn, userId]);
 
-  // 添加頁面載入時的筆記恢復邏輯
   useEffect(() => {
     if (isLoggedIn) {
-      const savedMemos = localStorage.getItem('memos');
-      if (savedMemos) {
-        try {
-          const parsedMemos = JSON.parse(savedMemos);
-          setMemos(parsedMemos);
-        } catch (error) {
-          console.error('解析本地筆記數據失敗:', error);
-        }
-      }
+      console.log("用戶已登入，啟動自動同步");
+      const cleanup = setupAutoSync();
+      
+      return cleanup;
     }
   }, [isLoggedIn]);
 
-  // 修改登入表單部分為響應式並顯示錯誤訊息
+  // 自動同步函數，設定定時器定期檢查並同步筆記
+  const setupAutoSync = () => {
+    // 設置同步需求標記
+    const needsSync = () => {
+      return localStorage.getItem('needsSync') === 'true' || 
+             sessionStorage.getItem('deletedNotes') !== null;
+    };
+
+    // 定時檢查是否需要同步
+    const syncInterval = setInterval(() => {
+      // 只有當真正需要同步時才執行
+      if (needsSync()) {
+        // 減少日誌輸出，只在真正需要同步時輸出一次
+        syncNotesToServer(false);
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(syncInterval);
+    };
+  };
+
+  // 在組件掛載時設置自動同步
+  useEffect(() => {
+    const cleanup = setupAutoSync();
+    
+    // 在組件卸載時清除
+    return cleanup;
+  }, []);
+
+  // 在頁面加載時檢查和恢復筆記
+  useEffect(() => {
+    if (isLoggedIn) {
+      const loadInitialNotes = async () => {
+        console.log("頁面加載，正在初始化筆記...");
+        
+        // 首先嘗試從本地存儲恢復筆記
+        try {
+          const savedMemos = localStorage.getItem('memos');
+          if (savedMemos) {
+            try {
+              const parsedMemos = JSON.parse(savedMemos);
+              console.log(`從本地存儲恢復了 ${parsedMemos.length} 條筆記`);
+              setMemos(parsedMemos);
+            } catch (error) {
+              console.error('解析本地筆記失敗:', error);
+            }
+          }
+        } catch (e) {
+          console.error("讀取本地存儲筆記失敗", e);
+        }
+        
+        // 檢查是否有未處理的操作
+        const pendingNewMemosStr = sessionStorage.getItem('pendingNewMemos');
+        const deletedNotesStr = sessionStorage.getItem('deletedNotes');
+        
+        const hasPendingNewMemos = pendingNewMemosStr && JSON.parse(pendingNewMemosStr).length > 0;
+        const hasPendingDeletes = deletedNotesStr && JSON.parse(deletedNotesStr).length > 0;
+        
+        // 如果有未處理的操作，立即同步
+        if (hasPendingNewMemos || hasPendingDeletes || localStorage.getItem('needsSync') === 'true') {
+          console.log("檢測到未處理的操作，執行緊急同步");
+          try {
+            const syncResult = await forceSyncToServer();
+            if (syncResult) {
+              console.log("✅ 初始化時的緊急同步成功");
+            } else {
+              console.warn("⚠️ 初始化時的緊急同步失敗");
+            }
+          } catch (syncError) {
+            console.error("初始化同步出錯", syncError);
+          }
+        }
+        
+        // 無論如何都從伺服器獲取最新筆記
+        try {
+          console.log("從伺服器獲取最新筆記...");
+          const fetchResult = await fetchLatestNotesFromServer();
+          if (fetchResult) {
+            console.log("✅ 成功獲取伺服器最新筆記");
+            localStorage.setItem('lastSyncTime', Date.now().toString());
+          }
+        } catch (fetchError) {
+          console.error("獲取伺服器筆記失敗", fetchError);
+        }
+      };
+      
+      loadInitialNotes();
+    }
+  }, [isLoggedIn]);
+
+  // 在用戶ID變化時重新獲取筆記
+  useEffect(() => {
+    if (isLoggedIn && userId) {
+      console.log(`用戶ID變化為: ${userId}，重新獲取筆記`);
+      fetchLatestNotesFromServer().catch(error => {
+        console.error("根據用戶ID獲取筆記失敗", error);
+      });
+    }
+  }, [userId, isLoggedIn]);
+
+  // 在登入狀態變化時重新設置自動同步
+  useEffect(() => {
+    if (isLoggedIn) {
+      console.log("用戶已登入，啟動自動同步");
+      const cleanup = setupAutoSync();
+      
+      return cleanup;
+    }
+  }, [isLoggedIn]);
+
   if (!isLoggedIn) {
+    // 如果 API 不健康，顯示錯誤畫面
+    if (!apiHealthy) {
+      return <ApiErrorFallback />;
+    }
+    
     return (
       <div className="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
         <div className="bg-gray-800 p-4 md:p-6 rounded-lg w-full max-w-md">
@@ -1203,7 +1619,6 @@ ${news.url}`;
             className="w-full p-2 mb-4 rounded-md bg-gray-700 text-white"
           />
           
-          {/* 顯示登入錯誤訊息 */}
           {loginError && (
             <div className="text-red-400 mb-4 text-sm">
               {loginError}
@@ -1221,14 +1636,16 @@ ${news.url}`;
     );
   }
 
-  // 已登入後的主畫面 - 最簡單可靠的 RWD 佈局
+  // 如果 API 不健康，顯示錯誤畫面
+  if (!apiHealthy) {
+    return <ApiErrorFallback />;
+  }
+
   return (
     <div className="bg-gray-900 text-white min-h-screen flex flex-col md:flex-row">
-      {/* 左側側邊欄 */}
       <aside className="bg-gray-800 p-4 md:p-6 md:w-64 border-b md:border-r md:border-b-0 border-gray-700 md:h-screen md:sticky md:top-0 flex flex-col">
         <h1 className="text-xl md:text-2xl font-bold text-yellow-400 mb-4">Crypto Memo</h1>
         
-        {/* 在桌面版用垂直排列，在手機版用水平排列 */}
         <form 
           className="mb-4"
           onSubmit={(e) => {
@@ -1236,7 +1653,6 @@ ${news.url}`;
             handleAddMemo();
           }}
         >
-          {/* 桌面版輸入區 - 垂直排列 */}
           <div className="hidden md:block">
         <input
           type="text"
@@ -1253,7 +1669,6 @@ ${news.url}`;
             </button>
           </div>
           
-          {/* 手機版輸入區 - 水平排列 */}
           <div className="flex md:hidden">
             <input
               type="text"
@@ -1271,7 +1686,6 @@ ${news.url}`;
           </div>
         </form>
 
-        {/* 筆記列表 */}
         <div className="overflow-y-auto flex-1">
           {memos.map((item, index) => (
             <div
@@ -1288,7 +1702,7 @@ ${news.url}`;
                 if (hasMoved || slidePosition[index] > 0) {
                   return;
                 }
-                handleMemoClick(item);
+                handleMemoClick(item, index);
               }}
             >
               <div
@@ -1302,7 +1716,7 @@ ${news.url}`;
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDeleteMemo(index);
+                  handleDeleteMemo(item.timestamp);
                 }}
                 className="absolute right-0 top-0 h-full bg-red-500 hover:bg-red-600 transition-all flex items-center justify-center"
                 style={{
@@ -1317,7 +1731,6 @@ ${news.url}`;
         </div>
       </aside>
 
-      {/* 中間主內容區 */}
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         {!selectedNews ? (
           <>
@@ -1350,7 +1763,6 @@ ${news.url}`;
                   </div>
                   ))}
                 
-                {/* 添加"更多新聞"按鈕 */}
                 <div className="flex justify-center mt-6 mb-8">
                   <button
                     onClick={handleMoreNewsClick}
@@ -1367,12 +1779,10 @@ ${news.url}`;
         )}
       </main>
       
-      {/* 右側側邊欄 - 修改溢出處理 */}
       <aside className="bg-gray-800 p-4 md:p-6 md:w-64 border-t md:border-l md:border-t-0 border-gray-700 md:h-screen md:sticky md:top-0">
         <h2 className="text-lg md:text-xl font-semibold mb-4 text-yellow-400 text-center">
           相關數據
         </h2>
-        {/* 修改溢出設置，只允許垂直滾動，禁止水平滾動 */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center space-y-4">
           <div className="w-full bg-gray-700 p-4 rounded-lg">
             <GaugeChart onAddToNote={handleGaugeAddToNote} />
@@ -1381,12 +1791,10 @@ ${news.url}`;
             <AltcoinIndex onAddToNote={handleGaugeAddToNote} />
           </div>
           
-          {/* 添加新數據按鈕 */}
           <AddNewDataButton />
           </div>
       </aside>
 
-      {/* 模態窗 */}
       {isNoteModalOpen && <NoteModal />}
       {showDevelopingModal && <DevelopingModal />}
     </div>
@@ -1394,3 +1802,4 @@ ${news.url}`;
 }
 
 export default App;
+

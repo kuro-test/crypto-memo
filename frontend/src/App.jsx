@@ -570,10 +570,10 @@ ${news.url}`;
     const diff = touchStartX.current - currentX;
 
     if (diff > 0) {
-      const position = Math.min(60, diff);
+      // 直接設置為最大值 60
       setSlidePosition((prev) => ({
         ...prev,
-        [index]: position,
+        [index]: 60,
       }));
     } else {
       setSlidePosition((prev) => ({
@@ -594,10 +594,10 @@ ${news.url}`;
     const diff = touchStartX.current - currentX;
 
     if (diff > 0) {
-      const position = Math.min(60, diff);
+      // 直接設置為最大值 60
       setSlidePosition((prev) => ({
         ...prev,
-        [index]: position,
+        [index]: 60,
       }));
     } else {
       setSlidePosition((prev) => ({
@@ -937,7 +937,7 @@ ${news.url}`;
             />
             <button
               type="submit"
-              className="bg-yellow-500 w-full p-2 rounded-md hover:bg-yellow-600 transition-colors font-medium"
+              className="bg-yellow-500 w-full p-2 rounded-md hover:bg-yellow-600 transition-colors font-medium cursor-pointer"
             >
               新增
             </button>
@@ -954,7 +954,7 @@ ${news.url}`;
             />
             <button
               type="submit"
-              className="bg-yellow-500 px-3 py-2 rounded-r-md hover:bg-yellow-600 transition-colors flex-shrink-0"
+              className="bg-yellow-500 px-3 py-2 rounded-r-md hover:bg-yellow-600 transition-colors flex-shrink-0 cursor-pointer"
             >
               新增
             </button>
@@ -975,6 +975,7 @@ ${news.url}`;
               onMouseUp={() => handleMouseUp(index)}
               onMouseLeave={() => handleMouseUp(index)}
               onClick={(e) => {
+                // 只有當沒有滑動時才觸發點擊事件
                 if (!slidePosition[index]) {
                   handleMemoClick(item);
                 }
@@ -996,9 +997,7 @@ ${news.url}`;
                 className="absolute right-0 top-0 h-full bg-red-500 hover:bg-red-600 transition-all flex items-center justify-center"
                 style={{
                   width: "60px",
-                  transform: `translateX(${
-                    60 - (slidePosition[index] || 0)
-                  }px)`,
+                  transform: `translateX(${60 - (slidePosition[index] || 0)}px)`,
                 }}
               >
                 刪除

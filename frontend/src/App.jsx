@@ -75,6 +75,7 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSliding, setIsSliding] = useState(false);
   const slidingTimeoutRef = useRef(null);
+  const [hasMoved, setHasMoved] = useState(false);
 
   // 當登入狀態改變時，更新 localStorage
   useEffect(() => {
@@ -564,6 +565,7 @@ ${news.url}`;
   const handleTouchStart = (e, index) => {
     touchStartX.current = e.touches[0].clientX;
     setIsSliding(true);
+    setHasMoved(false);
   };
 
   const handleTouchMove = (e, index) => {
@@ -571,9 +573,9 @@ ${news.url}`;
 
     const currentX = e.touches[0].clientX;
     const diff = touchStartX.current - currentX;
+    setHasMoved(true);
 
     if (diff > 0) {
-      // 直接設置為最大值 60
       setSlidePosition((prev) => ({
         ...prev,
         [index]: 60,
@@ -589,6 +591,7 @@ ${news.url}`;
   const handleMouseDown = (e, index) => {
     touchStartX.current = e.clientX;
     setIsSliding(true);
+    setHasMoved(false);
   };
 
   const handleMouseMove = (e, index) => {
@@ -596,9 +599,9 @@ ${news.url}`;
 
     const currentX = e.clientX;
     const diff = touchStartX.current - currentX;
+    setHasMoved(true);
 
     if (diff > 0) {
-      // 直接設置為最大值 60
       setSlidePosition((prev) => ({
         ...prev,
         [index]: 60,
@@ -1018,10 +1021,10 @@ ${news.url}`;
               onMouseUp={() => handleMouseUp(index)}
               onMouseLeave={() => handleMouseUp(index)}
               onClick={(e) => {
-                // 只有當沒有滑動時才觸發點擊事件
-                if (!slidePosition[index] && !isSliding) {
-                  handleMemoClick(item);
+                if (hasMoved || slidePosition[index] > 0) {
+                  return;
                 }
+                handleMemoClick(item);
               }}
             >
               <div

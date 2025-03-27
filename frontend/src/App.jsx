@@ -448,19 +448,23 @@ function App() {
     try {
       setIsAddingMemo(true);
       
-      // 生成新筆記
+      // 生成新筆記，確保有標題
       const timestamp = Date.now().toString();
-      const newMemo = {
-        ...data,
+        const newMemo = {
+        title: data.title || "無標題筆記", // 確保有標題，即使是空字串也會顯示預設標題
+        content: data.content || "",
         timestamp,
         lastModified: Date.now()
       };
       
       console.log("生成新筆記", newMemo);
       
-      // 更新本地狀態
-      const updatedMemos = [...memos, newMemo];
+      // 更新本地狀態 - 將新筆記放在陣列最前面
+      const updatedMemos = [newMemo, ...memos];
       setMemos(updatedMemos);
+      
+      // 重置所有滑動位置狀態
+      setSlidePosition({});
       
       // 立即保存到本地存儲
       saveMemosToLocalStorage(updatedMemos);
@@ -489,7 +493,7 @@ function App() {
           console.log("✅ 新筆記立即同步成功");
           // 清除待處理的新筆記標記
           sessionStorage.removeItem('pendingNewMemos');
-        } else {
+      } else {
           console.warn("⚠️ 新筆記立即同步失敗，將在下次啟動時嘗試");
         }
       } catch (syncError) {
@@ -557,6 +561,9 @@ function App() {
     console.log("更新後的筆記數量", updatedMemos.length);
     setMemos(updatedMemos);
     
+    // 清除所有滑動位置狀態
+    setSlidePosition({});
+    
     // 立即保存到本地存儲
     saveMemosToLocalStorage(updatedMemos);
     
@@ -569,7 +576,7 @@ function App() {
       const syncSuccess = await forceSyncToServer();
       if (syncSuccess) {
         console.log("✅ 刪除操作立即同步成功");
-      } else {
+        } else {
         console.warn("⚠️ 刪除操作立即同步失敗，將在下次啟動時嘗試");
       }
     } catch (syncError) {
@@ -1043,7 +1050,7 @@ ${news.url}`;
               onClick={handleSaveNote}
               className="px-4 md:px-5 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer"
             >
-              {isEditMode ? '更新' : '儲存'}
+              儲存
             </button>
           </div>
         </div>
@@ -1650,7 +1657,18 @@ ${news.url}`;
           className="mb-4"
           onSubmit={(e) => {
             e.preventDefault();
-            handleAddMemo();
+            if (memo.trim()) {
+              // 如果有輸入內容，則創建新筆記
+              handleAddMemo({ title: memo.trim(), content: "" });
+              setMemo("");
+            } else {
+              // 如果輸入為空，則打開筆記頁面進行編輯
+              setEditingTitle("");
+              setEditingContent("");
+              setIsEditMode(false);
+              setSelectedMemo(null);
+              setIsNoteModalOpen(true);
+            }
           }}
         >
           <div className="hidden md:block">
@@ -1699,10 +1717,9 @@ ${news.url}`;
               onMouseUp={() => handleMouseUp(index)}
               onMouseLeave={() => handleMouseUp(index)}
               onClick={(e) => {
-                if (hasMoved || slidePosition[index] > 0) {
-                  return;
+                if (!hasMoved && slidePosition[index] <= 0) {
+                  handleMemoClick(item, index);
                 }
-                handleMemoClick(item, index);
               }}
             >
               <div
@@ -1718,7 +1735,7 @@ ${news.url}`;
                   e.stopPropagation();
                   handleDeleteMemo(item.timestamp);
                 }}
-                className="absolute right-0 top-0 h-full bg-red-500 hover:bg-red-600 transition-all flex items-center justify-center"
+                className="absolute right-0 top-0 h-full bg-red-500 hover:bg-red-600 transition-all flex items-center justify-center cursor-pointer"
                 style={{
                   width: "60px",
                   transform: `translateX(${60 - (slidePosition[index] || 0)}px)`,

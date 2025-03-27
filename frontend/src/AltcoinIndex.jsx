@@ -126,6 +126,18 @@ const AltcoinIndex = ({ onAddToNote }) => {
           className="text-xl font-semibold text-center text-white cursor-help"
           onMouseEnter={() => setShowUpdateTime(true)}
           onMouseLeave={() => setShowUpdateTime(false)}
+          onClick={() => {
+            // 為移動設備優化：點擊標題時顯示更新時間
+            if (window.innerWidth < 768) {
+              setShowUpdateTime(!showUpdateTime);
+              // 如果顯示了更新時間，3秒後自動隱藏
+              if (!showUpdateTime) {
+                setTimeout(() => {
+                  setShowUpdateTime(false);
+                }, 3000);
+              }
+            }
+          }}
         >
           {title || "山寨幣月份指數"}
         </h3>
@@ -148,8 +160,8 @@ const AltcoinIndex = ({ onAddToNote }) => {
           </div>
         </div>
 
-        {/* 時間提示框 */}
-        {showUpdateTime && timestamp && (
+        {/* 時間提示框 - 修改條件確保在移動設備上的點擊狀態下可見 */}
+        {(showUpdateTime || false) && timestamp && (
           <div className="absolute z-10 bg-gray-800 text-white text-xs rounded-lg py-1 px-2 top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap border border-gray-700">
             更新時間：{formatTimestamp(timestamp)}
           </div>

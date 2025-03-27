@@ -152,11 +152,23 @@ const GaugeChart = ({ onAddToNote }) => {
           className="text-base font-semibold text-white-400 cursor-help"
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
+          onClick={() => {
+            // 為移動設備特別優化：點擊標題時顯示更新時間提示
+            if (window.innerWidth < 768) {
+              setShowTooltip(!showTooltip);
+              // 如果顯示了時間提示，3秒後自動隱藏
+              if (!showTooltip) {
+                setTimeout(() => {
+                  setShowTooltip(false);
+                }, 3000);
+              }
+            }
+          }}
         >
           比特幣恐懼貪婪指數
         </h3>
-        {/* 時間提示框 */}
-        {showTooltip && timestamp && (
+        {/* 時間提示框 - 確保在移動設備上的點擊狀態下可見 */}
+        {(showTooltip || false) && timestamp && (
           <div className="absolute z-10 bg-gray-800 text-white text-xs rounded-lg py-1 px-2 top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap border border-gray-700">
             更新時間：{formatTimestamp(timestamp)}
           </div>

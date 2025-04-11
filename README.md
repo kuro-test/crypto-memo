@@ -25,7 +25,7 @@ Crypto Memo 是一個專為加密貨幣愛好者設計的應用程式，提供�
 
 ### 後端
 - **Node.js**：運行爬蟲和伺服器程式。
-- **Express**（假設）：用於提供 API 服務（未明確展示，但推測存在）。
+- **Express**：用於提供 API 服務。
 - **axios**：用於發送 HTTP 請求以抓取網頁數據。
 - **cheerio**：解析 HTML 內容，提取新聞和指數數據。
 - **GoogleGenerativeAI**：透過 Gemini API 進行新聞翻譯和摘要生成。
@@ -34,7 +34,7 @@ Crypto Memo 是一個專為加密貨幣愛好者設計的應用程式，提供�
 ### 數據存儲
 - **Local Storage / Session Storage**：用於前端臨時存儲筆記和同步狀態。
 - **JSON 文件**：後端將新聞和指數數據存儲於 `database/news.json` 和 `database/index.json`。
-- **伺服器數據庫**（假設）：用於儲存用戶筆記和帳戶資訊（未明確展示）。
+- **伺服器數據庫**：用於儲存用戶筆記和帳戶資訊。
 
 ## 專案結構
 

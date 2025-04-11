@@ -165,15 +165,3 @@ crypto-memo/
 - **離線模式**：增強離線筆記編輯功能，支援更複雜的離線同步邏輯。
 - **多語言支持**：支援更多語言的翻譯和界面本地化。
 
-## 貢獻
-
-歡迎提交問題報告或 Pull Request！請遵循以下步驟：
-1. Fork 本倉庫。
-2. 創建你的功能分支（`git checkout -b feature/YourFeature`）。
-3. 提交你的更改（`git commit -m 'Add YourFeature'`）。
-4. 推送到分支（`git push origin feature/YourFeature`）。
-5. 開啟一個 Pull Request。
-
-## 授權
-
-本專案採用 [MIT 授權](LICENSE)。
